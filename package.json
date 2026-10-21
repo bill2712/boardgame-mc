@@ -1,0 +1,12 @@
+{
+  "name": "boardgame-mc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Voice-guided MC and timer for popular board games. 中英雙語桌遊語音主持人。",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "license": "MIT"
+}
