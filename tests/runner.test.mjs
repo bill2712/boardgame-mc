@@ -159,3 +159,22 @@ test('no listeners are left behind after many lines', async () => {
 });
 
 test('ABORT symbol is exported', () => { assert.equal(typeof ABORT, 'symbol'); });
+
+test('deal remembers the cards and tells the screen, so players can look again', async () => {
+  const view = fakeView();
+  let dealt = null;
+  view.onDealt = (c) => { dealt = c; };
+  const sp = fakeSpeech();
+  const r = new Runner(view, sp);
+  const cards = [{ seat: 1, title: tx('狼人', 'Werewolf'), team: 'evil' }, { seat: 2, title: tx('平民', 'Villager'), team: 'good' }];
+  const p = r.deal(cards);
+  for (let i = 0; i < 4; i++) { // pass, reveal, hide for each card
+    await tick();
+    view.stageNode.find((n) => n.tag === 'button').click();
+  }
+  await tick();
+  sp.end();
+  await p;
+  assert.equal(r.dealtCards, cards);
+  assert.equal(dealt, cards);
+});

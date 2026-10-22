@@ -473,6 +473,12 @@ body.night .sun { opacity: 0; transform: translateY(120px); }
 .cn-card.c-assassin { background: #1b1b1b; color: #fff; }
 .cn-card.peek { opacity: .85; outline: 2px dashed rgba(255, 255, 255, .6); }
 .cn-card.revealed { opacity: .55; }
+.hold { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
+.role-btn { font-size: 16px; }
+.recall-body { text-align: center; }
+.recall-body .deal-seat { font-size: 30px; font-weight: 900; }
+.recall-slot { height: 260px; overflow-y: auto; display: grid; place-items: center; } /* fixed: nothing moves under the finger */
+.recall-slot .role-card { width: 100%; }
 .cn-hold { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
 .btn.cn-red { background: rgba(229, 57, 53, .2); color: #ff6b6b; }
 .btn.cn-blue { background: rgba(30, 136, 229, .2); color: #64b5f6; }
