@@ -13,7 +13,7 @@ export const QUESTS = {
 const R = {
   merlin: { name: tx('梅林', 'Merlin'), team: 'good', emoji: '🧙', desc: tx('知道壞人是誰（莫德雷德除外），但不能暴露自己。', 'Knows the evil players (except Mordred). Must stay hidden.') },
   percival: { name: tx('派西維爾', 'Percival'), team: 'good', emoji: '🛡️', desc: tx('看到梅林（和莫甘娜），要分辨誰是真梅林。', 'Sees Merlin (and Morgana) but not which is which.') },
-  servant: { name: tx('亞瑟的忠臣', 'Loyal Servant of Arthur'), team: 'good', emoji: '⚔️', desc: tx('普通好人，冇特別資訊。', 'A loyal knight with no special knowledge.') },
+  servant: { name: tx('亞瑟的忠臣', 'Loyal Servant of Arthur'), team: 'good', emoji: '⚔️', desc: tx('普通好人，沒有特別資訊。', 'A loyal knight with no special knowledge.') },
   assassin: { name: tx('刺客', 'Assassin'), team: 'evil', emoji: '🗡️', desc: tx('好人完成三個任務後，可以刺殺梅林反敗為勝。', 'If good wins three quests, may assassinate Merlin to steal the win.') },
   morgana: { name: tx('莫甘娜', 'Morgana'), team: 'evil', emoji: '🔮', desc: tx('在派西維爾眼中扮成梅林。', 'Appears as Merlin to Percival.') },
   mordred: { name: tx('莫德雷德', 'Mordred'), team: 'evil', emoji: '👑', desc: tx('梅林看不到他。', 'Hidden from Merlin.') },
@@ -46,10 +46,10 @@ export default {
   rules: {
     zh: [
       '好人要完成 3 個任務；壞人要令 3 個任務失敗，或者連續 5 次組隊被否決。',
-      '每輪由隊長揀隊員，所有人公開投票是否同意；通過後隊員秘密出「成功／失敗」卡。',
-      '7 人或以上，第 4 個任務需要 2 張失敗卡先算失敗。',
+      '每輪由隊長挑選隊員，所有人公開投票是否同意；通過後隊員秘密打出「成功／失敗」卡。',
+      '7 人或以上時，第 4 個任務需要 2 張失敗卡才算失敗。',
       '好人完成 3 個任務後，刺客有一次機會刺殺梅林：刺中即壞人勝。',
-      '本 App 會讀出夜晚流程，並幫你記錄任務、投票同刺殺。',
+      '本 App 會讀出夜晚流程，並幫你記錄任務、投票和刺殺。',
     ],
     en: [
       'Good wins by completing 3 quests. Evil wins by failing 3 quests, or when 5 team proposals in a row are rejected.',
@@ -74,7 +74,7 @@ export default {
     { id: 'lady', type: 'toggle', label: tx('湖中仙女（建議 7 人或以上）', 'Lady of the Lake (7+ players recommended)'), default: false },
     { id: 'talk', type: 'number', label: tx('每輪組隊討論時間（0 = 不計時）', 'Discussion timer per round (0 = off)'), min: 0, max: 10, step: 1, unit: 'min', default: 0 },
     { id: 'nightSec', type: 'number', label: tx('夜晚每一步的時間', 'Time for each night step'), min: 3, max: 15, step: 1, unit: 'sec', default: 5 },
-    { id: 'deal', type: 'toggle', label: tx('電子派牌（冇實體卡都玩得）', 'Deal roles on this phone (no cards needed)'), default: false },
+    { id: 'deal', type: 'toggle', label: tx('電子派牌（沒有實體卡也能玩）', 'Deal roles on this phone (no cards needed)'), default: false },
   ],
   defaults(n) {
     const roles = { merlin: 1, percival: 1, assassin: 1, morgana: 1, mordred: 0, oberon: 0 };
@@ -94,9 +94,9 @@ export default {
     if (evilSpecial > evil) errors.push(tx(`${n} 人只有 ${evil} 個壞人，特殊壞人角色太多。`, `${n} players means only ${evil} evil players. Too many evil special roles.`));
     if (goodSpecial > n - evil) errors.push(tx('特殊好人角色太多。', 'Too many good special roles.'));
     if (r.assassin && !r.merlin) errors.push(tx('有刺客就一定要有梅林。', 'The Assassin needs Merlin in the game.'));
-    if (r.merlin && !r.assassin) warnings.push(tx('有梅林但冇刺客：冇刺殺階段。', 'Merlin without the Assassin: no assassination phase.'));
-    if (r.percival && !r.merlin) warnings.push(tx('派西維爾要配合梅林先有意思。', 'Percival is only useful with Merlin.'));
-    if (r.morgana && !r.percival) warnings.push(tx('莫甘娜要有派西維爾先有作用。', 'Morgana only matters when Percival is in the game.'));
+    if (r.merlin && !r.assassin) warnings.push(tx('有梅林但沒有刺客：沒有刺殺階段。', 'Merlin without the Assassin: no assassination phase.'));
+    if (r.percival && !r.merlin) warnings.push(tx('派西維爾要配合梅林才有意義。', 'Percival is only useful with Merlin.'));
+    if (r.morgana && !r.percival) warnings.push(tx('莫甘娜要有派西維爾才有作用。', 'Morgana only matters when Percival is in the game.'));
     const q = QUESTS[n].map((x, i) => (n >= 7 && i === 3 ? `${x}*` : x)).join(' – ');
     const summary = tx(
       `好人 ${n - evil} 人 · 壞人 ${evil} 人 · 任務人數 ${q}${n >= 7 ? '（* 要兩張失敗）' : ''}`,

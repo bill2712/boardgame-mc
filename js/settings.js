@@ -9,7 +9,8 @@ function guess() {
   const lang = (typeof navigator !== 'undefined' && navigator.language || 'en').toLowerCase();
   if (lang.startsWith('zh')) {
     const yue = /zh-(hk|mo)|yue/.test(lang);
-    return { uiLang: 'zh', voiceLang: yue ? 'yue' : 'cmn' };
+    const hans = /zh-(cn|sg|hans)/.test(lang);
+    return { uiLang: hans ? 'zhs' : 'zh', voiceLang: yue ? 'yue' : 'cmn' };
   }
   return { uiLang: 'en', voiceLang: 'en' };
 }
@@ -23,6 +24,10 @@ const DEFAULTS = {
   sfx: true,         // beeps and chimes
   wakeLock: true,    // keep screen on while playing
   nightDim: true,    // dark screen during night phases
+  theme: 'auto',     // auto | dark | light
+  names: [],         // player names by seat (optional)
+  favorites: [],     // game ids
+  recent: [],        // game ids, most recent first
 };
 
 function load() {
@@ -50,4 +55,17 @@ export function loadSetup(gameId) {
 export function saveSetup(gameId, setup) {
   if (!hasStorage) return;
   try { localStorage.setItem(`bgmc.setup.${gameId}`, JSON.stringify(setup)); } catch { /* ignore */ }
+}
+
+export function markPlayed(gameId) {
+  settings.recent = [gameId, ...(settings.recent || []).filter((id) => id !== gameId)].slice(0, 4);
+  saveSettings();
+}
+
+export function toggleFavorite(gameId) {
+  const fav = new Set(settings.favorites || []);
+  fav.has(gameId) ? fav.delete(gameId) : fav.add(gameId);
+  settings.favorites = [...fav];
+  saveSettings();
+  return fav.has(gameId);
 }

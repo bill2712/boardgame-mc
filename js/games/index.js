@@ -5,9 +5,23 @@ import oneNight from './one-night.js';
 import undercover from './undercover.js';
 import secretHitler from './secret-hitler.js';
 import insider from './insider.js';
+import spyfall from './spyfall.js';
+import werewords from './werewords.js';
+import chameleon from './chameleon.js';
+import deception from './deception.js';
+import codenames from './codenames.js';
+import fakeArtist from './fake-artist.js';
+import charades from './charades.js';
 import timer from './timer.js';
+import { CONTENT } from '../content.js';
 
-export const GAMES = [cheeseThief, avalon, werewolf, oneNight, undercover, secretHitler, insider, timer];
+const LIST = [
+  cheeseThief, avalon, werewolf, oneNight, undercover, spyfall, codenames, werewords,
+  chameleon, deception, secretHitler, insider, fakeArtist, charades, timer,
+];
+
+// Merge display content (category, colours, tips, FAQ) into each game.
+export const GAMES = LIST.map((g) => Object.assign(g, CONTENT[g.id] || {}, { category: g.category || CONTENT[g.id]?.category }));
 export const gameById = (id) => GAMES.find((g) => g.id === id);
 
 /** Build a fresh setup for a game and player count, keeping option values when given. */

@@ -124,11 +124,10 @@ export class Runner {
     let lastTick = -1;
 
     const time = h('div', { class: 'timer-time' }, fmtTime(sec));
-    const bar = h('div', { class: 'timer-bar-fill' });
+    const ring = ringSvg();
     const node = h('div', { class: 'timer' },
       opts.title ? h('div', { class: 'timer-title' }, L(opts.title)) : null,
-      time,
-      h('div', { class: 'timer-bar' }, bar),
+      h('div', { class: 'timer-dial' }, ring.svg, time),
       h('div', { class: 'btn-row' },
         h('button', { class: 'btn', onclick: () => { remaining += 30000; total += 30; said.clear(); } }, t('addTime')),
         (opts.buttons || []).map((b) => h('button', {
@@ -141,7 +140,7 @@ export class Runner {
     this.view.stage(node);
     const paint = () => {
       time.textContent = fmtTime(remaining / 1000);
-      bar.style.width = `${Math.max(0, Math.min(100, (remaining / 1000 / total) * 100))}%`;
+      ring.set(remaining / 1000 / total);
       node.classList.toggle('low', remaining <= 10000);
     };
     paint();
@@ -172,6 +171,7 @@ export class Runner {
     this.view.stage(null);
     if (reason === 'end') {
       sfx('end');
+      try { navigator.vibrate?.([200, 100, 200]); } catch { /* not supported */ }
       if (!opts.silentEnd) await this.say(opts.endText || tx('時間到！', "Time's up!"));
     }
     return { elapsed, remaining: left, reason };
@@ -192,6 +192,22 @@ export class Runner {
       }, L(b.label)))),
     );
     this.view.stage(node);
+    try {
+      return await Promise.race([p, this.abortPromise]);
+    } finally {
+      this.view.stage(null);
+    }
+  }
+
+  /**
+   * Custom interactive widget. build(done, runner) returns a node; the promise
+   * resolves with whatever is passed to done(). Used for boards like Codenames.
+   */
+  async widget(build) {
+    await this.gate();
+    let done;
+    const p = new Promise((r) => { done = r; });
+    this.view.stage(build(done, this));
     try {
       return await Promise.race([p, this.abortPromise]);
     } finally {
@@ -225,7 +241,9 @@ export class Runner {
           b.classList.add('sel');
           ok.disabled = false;
         },
-      }, h('span', { class: 'cell-main' }, L(it.label)), it.sub ? h('span', { class: 'cell-sub' }, L(it.sub)) : null);
+      }, h('span', { class: 'cell-main' }, L(it.label)),
+      it.sub ? h('span', { class: 'cell-sub' }, L(it.sub)) : null,
+      typeof it.id === 'number' && playerName(it.id) ? h('span', { class: 'cell-name' }, playerName(it.id)) : null);
       return b;
     });
     const node = h('div', { class: 'panel' },
@@ -252,26 +270,29 @@ export class Runner {
   async deal(cards) {
     await this.gate();
     for (const card of cards) {
-      // Step 1: hand over.
+      const who = seatLabel(card.seat);
+      // Step 1: hand over (card face down).
       await new Promise((resolve, reject) => {
         this.abortPromise.catch(reject);
         this.view.stage(h('div', { class: 'deal' },
           h('div', { class: 'deal-pass' }, t('passTo')),
-          h('div', { class: 'deal-seat' }, t('seatPlayer', { n: card.seat })),
+          h('div', { class: 'deal-seat' }, who),
+          h('div', { class: 'flip-card' }, h('div', { class: 'flip-back' }, h('span', {}, '?'))),
           h('div', { class: 'muted' }, t('dealHint')),
-          h('button', { class: 'btn big primary', onclick: resolve }, t('tapToReveal', { n: card.seat })),
+          h('button', { class: 'btn big primary', onclick: resolve }, t('tapToReveal', { n: who })),
         ));
       });
-      // Step 2: show the card.
+      // Step 2: flip and show the card.
       await new Promise((resolve, reject) => {
         this.abortPromise.catch(reject);
-        this.view.stage(h('div', { class: `deal card team-${card.team || 'neutral'}` },
-          h('div', { class: 'muted' }, `${t('seatPlayer', { n: card.seat })} · ${t('yourRole')}`),
-          card.emoji ? h('div', { class: 'card-emoji' }, card.emoji) : null,
-          h('div', { class: 'card-title' }, L(card.title)),
-          card.teamLabel ? h('div', { class: 'card-team' }, L(card.teamLabel)) : null,
-          card.body ? h('div', { class: 'card-body' }, [].concat(card.body).map((b) => h('p', {}, L(b)))) : null,
-          h('button', { class: 'btn big', onclick: resolve }, t('hideAndPass')),
+        this.view.stage(h('div', { class: 'deal' },
+          h('div', { class: 'muted' }, `${who} · ${t('yourRole')}`),
+          h('div', { class: `role-card flip-in team-${card.team || 'neutral'}` },
+            card.emoji ? h('div', { class: 'card-emoji' }, card.emoji) : null,
+            h('div', { class: 'card-title' }, L(card.title)),
+            card.teamLabel ? h('div', { class: 'card-team' }, L(card.teamLabel)) : null,
+            card.body ? h('div', { class: 'card-body' }, [].concat(card.body).map((b) => h('p', {}, L(b)))) : null),
+          h('button', { class: 'btn big', onclick: resolve }, '🙈 ', t('hideAndPass')),
         ));
       });
     }
@@ -306,15 +327,57 @@ export class Runner {
       buttons: (o) => self.buttons(o),
       ready: (label) => self.ready(label),
       choose: (o) => self.choose(o),
+      widget: (build) => self.widget(build),
       deal: (cards) => self.deal(cards),
       board: (node) => self.board(node),
       stage: (node) => self.view.stage(node),
       phase: (text, o) => self.phase(text, o),
       sfx,
-      seat: (n) => tx(`${n}號`, `player ${n}`),
-      seats: (list) => joinNames(list.map((n) => tx(`${n}號`, `${n}`))),
+      seat: seatText,
+      seats: (list) => joinNames(list.map(seatText)),
+      name: playerName,
+      vibrate: (p) => { try { navigator.vibrate?.(p); } catch { /* ignore */ } },
     };
   }
+}
+
+/** Custom name for a seat, if the players typed one in. */
+export function playerName(n) {
+  const name = (settings.names || [])[n - 1];
+  return name && name.trim() ? name.trim() : null;
+}
+
+/** Bilingual way to say a seat: "阿明" / "3號" / "player 3". */
+export function seatText(n) {
+  const name = playerName(n);
+  return name ? tx(name, name) : tx(`${n}號`, `player ${n}`);
+}
+
+function seatLabel(n) {
+  const name = playerName(n);
+  return name ? `${name} (${n})` : t('seatPlayer', { n });
+}
+
+function ringSvg() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 120 120');
+  svg.setAttribute('class', 'ring');
+  const mk = (cls) => {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', '60'); c.setAttribute('cy', '60'); c.setAttribute('r', '52');
+    c.setAttribute('class', cls);
+    svg.append(c);
+    return c;
+  };
+  mk('ring-track');
+  const bar = mk('ring-bar');
+  const len = 2 * Math.PI * 52;
+  bar.style.strokeDasharray = `${len}`;
+  return {
+    svg,
+    set(p) { bar.style.strokeDashoffset = `${len * (1 - Math.max(0, Math.min(1, p)))}`; },
+  };
 }
 
 function warnLine(sec) {

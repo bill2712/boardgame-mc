@@ -15,7 +15,16 @@ function mockCtx(setup, { maxSteps = 4000 } = {}) {
   const lines = [];
   let steps = 0;
   const tick = () => { if (++steps > maxSteps) throw new Error('script did not finish'); };
-  const node = () => new Proxy({}, { get: (t, k) => (k in t ? t[k] : () => node()), set: (t, k, v) => { t[k] = v; return true; } });
+  // Fake DOM node: any property is another callable fake node.
+  const node = () => new Proxy(function fake() {}, {
+    get: (t, k) => {
+      if (k === 'then') return undefined;
+      if (k === Symbol.toPrimitive) return () => '';
+      return k in t ? t[k] : node();
+    },
+    apply: () => node(),
+    set: (t, k, v) => { t[k] = v; return true; },
+  });
   const checkText = (text) => {
     if (typeof text === 'string') return;
     assert.ok(isText(text), `bad text: ${JSON.stringify(text)}`);
@@ -50,6 +59,17 @@ function mockCtx(setup, { maxSteps = 4000 } = {}) {
       assert.equal(cards.length, setup.n, 'one card per player');
       cards.forEach((c, i) => { assert.equal(c.seat, i + 1); checkText(c.title); });
     },
+    async widget(build) {
+      tick();
+      let result;
+      const runner = { paused: false, abortPromise: Promise.reject(new Error('stop')) };
+      runner.abortPromise.catch(() => {});
+      build((v) => { result = v; }, runner);
+      // Widgets finish on taps or timers; answer like a real one would.
+      if (result !== undefined) return result;
+      return setup.__game === 'codenames' ? { winner: pick(['red', 'blue']), why: pick(['agents', 'assassin']) } : randInt(0, 8);
+    },
+    vibrate() {}, name: () => null,
     board() {}, stage() {}, phase(text) { checkText(text); }, sfx() {},
     seat: (n) => tx(`${n}號`, `player ${n}`),
     seats: (list) => joinNames(list.map((n) => tx(`${n}號`, `${n}`))),
@@ -62,6 +82,16 @@ for (const game of GAMES) {
     assert.ok(game.rules.zh.length && game.rules.en.length);
     game.roles.forEach((r) => assert.ok(isText(r.name), r.id));
     game.options.forEach((o) => assert.ok(isText(o.label), o.id));
+    assert.ok(['deduction', 'party', 'word', 'tool'].includes(game.category), 'category');
+    assert.equal(game.colors.length, 2, 'colors');
+    assert.ok(game.aka.length > 0, 'aka');
+    assert.ok(game.tips.zh.length && game.tips.zh.length === game.tips.en.length, 'tips');
+    assert.ok(game.faq.length && game.faq.every((f) => isText(f.q) && isText(f.a)), 'faq');
+  });
+
+  test(`${game.id}: Chinese text is standard written Chinese`, () => {
+    const all = JSON.stringify([game.name, game.tagline, game.rules.zh, game.roles, game.options, game.tips.zh, game.faq]);
+    assert.doesNotMatch(all, /[唔冇嘅咗揀睇嚟佢喺啲嘢俾畀晒攞]|而家|邊個/, 'Cantonese colloquial found');
   });
 
   test(`${game.id}: default setup is valid for every player count`, () => {
@@ -84,6 +114,7 @@ for (const game of GAMES) {
           if (o.type === 'select') s.opts[o.id] = pick(o.choices).value;
         }
         if (game.check(s).errors.length) continue;
+        s.__game = game.id;
         const ctx = mockCtx(s);
         await game.run(ctx, s);
         assert.ok(ctx.lines.length > 0, 'said something');
@@ -139,4 +170,18 @@ test('util helpers', () => {
   assert.deepEqual(spokenDuration(75), { zh: '1分鐘15秒', en: '1 minute 15 seconds' });
   assert.deepEqual(joinNames([tx('梅林', 'Merlin'), tx('莫甘娜', 'Morgana')]), { zh: '梅林和莫甘娜', en: 'Merlin and Morgana' });
   assert.equal(shuffle(range(1, 10)).length, 10);
+});
+
+test('codenames word pool has no duplicates and enough words', async () => {
+  const { wordPool } = await import('../js/games/words.js');
+  const pool = wordPool();
+  assert.ok(pool.length >= 25 * 4);
+  assert.equal(new Set(pool.map((w) => w[0])).size, pool.length);
+});
+
+test('simplified Chinese conversion', async () => {
+  const { toHans } = await import('../js/i18n.js');
+  assert.equal(toHans('芝士大盜'), '奶酪大盗');
+  assert.equal(toHans('請關閉靜音模式'), '请关闭静音模式');
+  assert.equal(toHans('搜尋遊戲'), '搜寻游戏');
 });

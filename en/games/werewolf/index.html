@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <base href="../../../">
+  <title>Werewolf moderator &amp; timer | Rules, roles and setup guide</title>
+  <meta name="description" content="Fully automatic moderator: deals roles, runs the night, announces deaths. No moderator needed. The phone deals roles, and at night each role takes a turn choosi">
+  <link rel="canonical" href="https://bill2712.github.io/boardgame-mc/en/games/werewolf/">
+  <link rel="alternate" hreflang="zh-Hant" href="https://bill2712.github.io/boardgame-mc/games/werewolf/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://bill2712.github.io/boardgame-mc/zh-hans/games/werewolf/">
+  <link rel="alternate" hreflang="en" href="https://bill2712.github.io/boardgame-mc/en/games/werewolf/">
+  <link rel="alternate" hreflang="x-default" href="https://bill2712.github.io/boardgame-mc/games/werewolf/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Board Game MC">
+  <meta property="og:title" content="Werewolf moderator &amp; timer | Rules, roles and setup guide">
+  <meta property="og:description" content="Fully automatic moderator: deals roles, runs the night, announces deaths. No moderator needed. The phone deals roles, and at night each role takes a turn choosi">
+  <meta property="og:url" content="https://bill2712.github.io/boardgame-mc/en/games/werewolf/">
+  <meta property="og:image" content="https://bill2712.github.io/boardgame-mc/og/werewolf.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Werewolf moderator &amp; timer | Rules, roles and setup guide">
+  <meta name="twitter:description" content="Fully automatic moderator: deals roles, runs the night, announces deaths. No moderator needed. The phone deals roles, and at night each role takes a turn choosi">
+  <meta name="twitter:image" content="https://bill2712.github.io/boardgame-mc/og/werewolf.jpg">
+  <meta name="theme-color" content="#0a0b1e">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=3">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Board Game MC","item":"https://bill2712.github.io/boardgame-mc/en/"},{"@type":"ListItem","position":2,"name":"Werewolf","item":"https://bill2712.github.io/boardgame-mc/en/games/werewolf/"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Game","name":"Werewolf","alternateName":["狼人殺","狼人杀","天黑請閉眼","殺人遊戲","Mafia","Werewolves of Millers Hollow"],"description":"Fully automatic moderator: deals roles, runs the night, announces deaths. No moderator needed. The phone deals roles, and at night each role takes a turn choosi","inLanguage":"en","url":"https://bill2712.github.io/boardgame-mc/en/games/werewolf/","numberOfPlayers":{"@type":"QuantitativeValue","minValue":6,"maxValue":16},"genre":"Social deduction"}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can you play Werewolf without a moderator?","acceptedAnswer":{"@type":"Answer","text":"Yes. The app is a fully automatic moderator: it deals roles, takes night actions on the phone, announces deaths and detects the winner."}},{"@type":"Question","name":"What is \"side\" vs \"all\" win condition?","acceptedAnswer":{"@type":"Answer","text":"\"Side\": werewolves win by killing all special roles or all villagers. \"All\": they must kill every good player. \"Side\" is faster."}},{"@type":"Question","name":"What if the Guard and the Witch protect the same player?","acceptedAnswer":{"@type":"Answer","text":"By common rules, a player who is both guarded and healed on the same night still dies."}}]}</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="en/"><img src="icons/icon.svg" alt="" width="30" height="30"><span>Board Game MC</span></a>
+    <nav class="topbar-actions"><div class="lang-seg"><a href="games/werewolf/" hreflang="zh-Hant" class="" style="text-decoration:none;padding:5px 9px;border-radius:9px;font-size:13px;font-weight:700">繁</a><a href="zh-hans/games/werewolf/" hreflang="zh-Hans" class="" style="text-decoration:none;padding:5px 9px;border-radius:9px;font-size:13px;font-weight:700">简</a><a href="en/games/werewolf/" hreflang="en" class="on" style="text-decoration:none;padding:5px 9px;border-radius:9px;font-size:13px;font-weight:700">EN</a></div></nav>
+  </header>
+  <main class="wrap guide setup" style="--c1:#3a1c71;--c2:#d76d77">
+    <nav class="crumbs" aria-label="breadcrumb"><a href="en/">Board Game MC</a> › Werewolf</nav>
+    <header class="setup-hero guide-hero">
+      <div class="setup-emoji">🐺</div>
+      <div class="setup-title">
+        <h1>Werewolf: moderator &amp; rules guide</h1>
+        <p>Fully automatic moderator: deals roles, runs the night, announces deaths</p>
+        <div class="gc-meta light"><span>👥 6–16 players</span><span>⏳ 30–60 min</span><span>⭐ Best 9–12</span><span>Social deduction</span></div>
+        <div class="guide-cta"><a class="btn primary big" href="en/#/game/werewolf">▶ Start with the app</a></div>
+      </div>
+    </header>
+
+    <section class="card-sec"><p>Want to play Werewolf without anyone sitting out as moderator? Board Game MC narrates it for you in Cantonese, Mandarin or English, with timers and optional digital role dealing. Also known as 狼人殺, 狼人杀, 天黑請閉眼.</p></section>
+
+    <h2>📖 How to play</h2>
+    <section class="card-sec"><ol><li>No moderator needed. The phone deals roles, and at night each role takes a turn choosing on the phone (keep it in the middle of the table).</li><li>Night order: Guard → Werewolves → Witch → Seer. At dawn the phone announces who died.</li><li>During the day players speak in seat order, then vote to exile one player.</li><li>Good wins when every werewolf is gone. Werewolves win by killing all special roles or all villagers (&quot;side&quot;), or every good player (&quot;all&quot;).</li><li>Guarded and healed on the same night still dies. Poison ignores the Guard. A poisoned Hunter cannot shoot.</li></ol></section>
+    
+    <h2>🎭 Roles</h2>
+    <section class="card-sec table-scroll"><table class="role-table">
+      <thead><tr><th>Role</th><th>Team</th><th>Ability</th></tr></thead>
+      <tbody><tr><td><b>🐺 Werewolf</b></td><td><span class="team-pill evil">Evil</span></td><td>Each night, choose a victim with the other werewolves.</td></tr><tr><td><b>🔮 Seer</b></td><td><span class="team-pill good">Good</span></td><td>Each night, check whether a player is a werewolf.</td></tr><tr><td><b>🧪 Witch</b></td><td><span class="team-pill good">Good</span></td><td>One healing potion and one poison, each usable once; at most one per night.</td></tr><tr><td><b>🏹 Hunter</b></td><td><span class="team-pill good">Good</span></td><td>When you die you may shoot a player (not if poisoned).</td></tr><tr><td><b>🛡️ Guard</b></td><td><span class="team-pill good">Good</span></td><td>Each night protect a player from the wolves; not the same player two nights in a row.</td></tr><tr><td><b>🤪 Idiot</b></td><td><span class="team-pill good">Good</span></td><td>If voted out, reveal and survive, but lose your vote.</td></tr><tr><td><b>👨‍🌾 Villager</b></td><td><span class="team-pill good">Good</span></td><td>No special ability. Find the werewolves by reasoning.</td></tr></tbody>
+    </table></section>
+    
+    <h2>👥 Recommended setups</h2>
+    <section class="card-sec table-scroll"><table class="role-table">
+      <thead><tr><th>Players</th><th>Setup</th></tr></thead>
+      <tbody><tr><td><b>6</b></td><td>2 werewolves · 2 specials · 2 villagers</td></tr><tr><td><b>7</b></td><td>2 werewolves · 3 specials · 2 villagers</td></tr><tr><td><b>8</b></td><td>2 werewolves · 3 specials · 3 villagers</td></tr><tr><td><b>9</b></td><td>3 werewolves · 3 specials · 3 villagers</td></tr><tr><td><b>10</b></td><td>3 werewolves · 4 specials · 3 villagers</td></tr><tr><td><b>11</b></td><td>3 werewolves · 4 specials · 4 villagers</td></tr><tr><td><b>12</b></td><td>4 werewolves · 5 specials · 3 villagers</td></tr><tr><td><b>13</b></td><td>4 werewolves · 5 specials · 4 villagers</td></tr><tr><td><b>14</b></td><td>4 werewolves · 5 specials · 5 villagers</td></tr><tr><td><b>15</b></td><td>5 werewolves · 5 specials · 5 villagers</td></tr><tr><td><b>16</b></td><td>5 werewolves · 5 specials · 6 villagers</td></tr></tbody>
+    </table></section>
+    <h2>💡 Tips</h2>
+    <section class="card-sec"><ul><li>The Seer can claim on day one or stay hidden until the key moment.</li><li>Witches usually heal on night one, when there is the least information.</li><li>The Guard cannot protect the same player two nights in a row anyway, so vary it.</li><li>Werewolves should reason like villagers; going quiet looks suspicious.</li></ul></section>
+
+    <h2>❓ FAQ</h2>
+    <section class="card-sec faq"><details open><summary>Can you play Werewolf without a moderator?</summary><p>Yes. The app is a fully automatic moderator: it deals roles, takes night actions on the phone, announces deaths and detects the winner.</p></details><details><summary>What is &quot;side&quot; vs &quot;all&quot; win condition?</summary><p>&quot;Side&quot;: werewolves win by killing all special roles or all villagers. &quot;All&quot;: they must kill every good player. &quot;Side&quot; is faster.</p></details><details><summary>What if the Guard and the Witch protect the same player?</summary><p>By common rules, a player who is both guarded and healed on the same night still dies.</p></details></section>
+
+    <div style="margin:26px 0"><a class="btn primary big" href="en/#/game/werewolf">▶ Moderate Werewolf now</a></div>
+
+    <h2>🎲 More games</h2>
+    <div class="related"><a class="mini" href="en/games/cheese-thief/" style="--c1:#ffb347;--c2:#ff6a3d"><span class="mini-emoji">🧀</span><span>Cheese Thief</span></a><a class="mini" href="en/games/avalon/" style="--c1:#5b6cff;--c2:#9b4dff"><span class="mini-emoji">🏰</span><span>The Resistance: Avalon</span></a><a class="mini" href="en/games/one-night/" style="--c1:#1e3c72;--c2:#2a5298"><span class="mini-emoji">🌕</span><span>One Night Ultimate Werewolf</span></a><a class="mini" href="en/games/deception/" style="--c1:#c31432;--c2:#240b36"><span class="mini-emoji">🔍</span><span>Deception: Murder in Hong Kong</span></a></div>
+
+    <footer class="foot">
+      <nav class="foot-links"><a href="en/games/cheese-thief/">Cheese Thief</a><a href="en/games/avalon/">The Resistance: Avalon</a><a href="en/games/werewolf/">Werewolf</a><a href="en/games/one-night/">One Night Ultimate Werewolf</a><a href="en/games/undercover/">Who's the Undercover</a><a href="en/games/spyfall/">Spyfall</a><a href="en/games/codenames/">Codenames</a><a href="en/games/werewords/">Werewords</a><a href="en/games/chameleon/">The Chameleon</a><a href="en/games/deception/">Deception: Murder in Hong Kong</a><a href="en/games/secret-hitler/">Secret Hitler</a><a href="en/games/insider/">Insider</a><a href="en/games/fake-artist/">A Fake Artist Goes to New York</a><a href="en/games/charades/">Charades</a><a href="en/games/timer/">Table Timer</a></nav>
+      <p>Open source · runs in your browser, collects no data · <a href="https://github.com/bill2712/boardgame-mc" rel="noopener">GitHub</a></p>
+      <p class="small">Unofficial fan-made helper, not affiliated with any publisher. Please support the original games!</p>
+    </footer>
+  </main>
+</body>
+</html>

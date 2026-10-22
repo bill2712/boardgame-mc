@@ -1,10 +1,10 @@
-import { tx, shuffle, pick } from '../util.js';
+import { tx, shuffle, pick, ucfirst } from '../util.js';
 import { UNDERCOVER_PAIRS } from './words.js';
 
 const R = {
   civilian: { name: tx('平民', 'Civilian'), team: 'good', desc: tx('大部分人拿到同一個詞語。', 'Most players share the same word.') },
-  undercover: { name: tx('臥底', 'Undercover'), team: 'evil', desc: tx('詞語同平民相似但唔同；自己未必知道自己是臥底。', 'Gets a similar but different word, and may not realise it.') },
-  blank: { name: tx('白板', 'Blank'), team: 'neutral', desc: tx('冇詞語，要扮識。', 'Gets no word and has to bluff.') },
+  undercover: { name: tx('臥底', 'Undercover'), team: 'evil', desc: tx('詞語和平民相似但不同；自己未必知道自己是臥底。', 'Gets a similar but different word, and may not realise it.') },
+  blank: { name: tx('白板', 'Blank'), team: 'neutral', desc: tx('沒有詞語，要假裝知道。', 'Gets no word and has to bluff.') },
 };
 
 /** 'civilian' | 'undercover' | null */
@@ -19,17 +19,17 @@ export function undercoverWinner(players) {
 
 export default {
   id: 'undercover',
-  emoji: '🕵️',
+  emoji: '🙊',
   name: tx('誰是臥底', "Who's the Undercover"),
-  tagline: tx('人人一個詞，描述得太準會被臥底知道', 'Everyone gets a word, but one is slightly different'),
+  tagline: tx('每人一個詞，描述得太準會被臥底知道', 'Everyone gets a word, but one is slightly different'),
   players: { min: 4, max: 12, default: 6 },
   time: '15',
   rules: {
     zh: [
-      '手機輪流派詞：平民拿到同一個詞，臥底拿到相似但唔同的詞，白板冇詞。',
-      '每輪每人用一句說話描述自己的詞，唔可以直接講出個詞。',
+      '手機輪流派詞：平民拿到同一個詞，臥底拿到相似但不同的詞，白板沒有詞。',
+      '每輪每人用一句話描述自己的詞，不可以直接說出那個詞。',
       '每輪描述完畢後投票，最高票的玩家出局。',
-      '臥底（同白板）全部出局，平民勝；臥底人數 ≥ 平民人數，或者只剩兩人，臥底勝。',
+      '臥底（和白板）全部出局，平民勝；臥底人數 ≥ 平民人數，或者只剩兩人，臥底勝。',
     ],
     en: [
       'The phone deals words: civilians share one word, the undercover gets a similar one, and a blank gets none.',
@@ -62,7 +62,7 @@ export default {
   check(s) {
     const bad = (s.roles.undercover || 0) + (s.roles.blank || 0);
     const errors = [];
-    if (bad >= s.n - bad) errors.push(tx('臥底同白板太多，要少過平民。', 'Too many undercovers and blanks. They must be fewer than civilians.'));
+    if (bad >= s.n - bad) errors.push(tx('臥底和白板太多，人數要少於平民。', 'Too many undercovers and blanks. They must be fewer than civilians.'));
     return { errors, warnings: [], summary: tx(`平民 ${s.n - bad} · 臥底 ${s.roles.undercover || 0} · 白板 ${s.roles.blank || 0}`, `${s.n - bad} civilians · ${s.roles.undercover || 0} undercover · ${s.roles.blank || 0} blank`) };
   },
 
@@ -84,8 +84,8 @@ export default {
       team: 'neutral',
       title: p.role === 'blank' ? tx('你是白板', 'You are a Blank') : tx(`你的詞語：${word(p.role === 'civilian' ? civ : und)}`, `Your word: ${word(p.role === 'civilian' ? civ : und)}`),
       body: p.role === 'blank'
-        ? tx('你冇詞語。聽清楚其他人點講，扮識混過去！', 'You have no word. Listen carefully and bluff!')
-        : tx('記住你的詞語。描述時唔可以直接講出嚟。', 'Remember your word. Never say it out loud.'),
+        ? tx('你沒有詞語。仔細聽其他人怎樣描述，假裝知道混過去！', 'You have no word. Listen carefully and bluff!')
+        : tx('記住你的詞語。描述時不可以直接說出來。', 'Remember your word. Never say it out loud.'),
     })));
 
     const strip = () => ctx.board(ctx.h('div', { class: 'seat-strip' }, P.map((p) => ctx.h('span', { class: `seat ${p.alive ? '' : 'dead'}` }, String(p.seat)))));
@@ -96,11 +96,11 @@ export default {
       const living = P.filter((p) => p.alive).map((p) => p.seat);
       const start = living[Math.floor(Math.random() * living.length)];
       const order = [...living.filter((x) => x >= start), ...living.filter((x) => x < start)];
-      await ctx.say(tx(`第 ${round} 輪，由 ${start} 號開始，順時針每人用一句說話描述你的詞語。`, `Round ${round}. Starting with player ${start} and going clockwise, describe your word in one sentence.`));
+      await ctx.say(tx(`第 ${round} 輪，由 ${ctx.seat(start).zh}開始，順時針每人用一句說話描述你的詞語。`, `Round ${round}. Starting with ${ctx.seat(start).en} and going clockwise, describe your word in one sentence.`));
       if (s.opts.speak > 0) {
         for (const seat of order) {
-          await ctx.say(tx(`${seat} 號。`, `Player ${seat}.`), { after: 0.1 });
-          await ctx.timer(s.opts.speak, { title: tx(`${seat} 號描述`, `Player ${seat} describing`), endLabel: tx('講完', 'Done'), silentEnd: true, warnings: [] });
+          await ctx.say(tx(`${ctx.seat(seat).zh}。`, `${ucfirst(ctx.seat(seat).en)}.`), { after: 0.1 });
+          await ctx.timer(s.opts.speak, { title: tx(`${ctx.seat(seat).zh}描述`, `${ucfirst(ctx.seat(seat).en)} describing`), endLabel: tx('說完', 'Done'), silentEnd: true, warnings: [] });
         }
       } else {
         await ctx.ready(tx('描述完畢，開始投票', 'Done, start voting'));
@@ -112,15 +112,15 @@ export default {
         extra: [{ id: 'tie', label: tx('平票，再描述一輪', 'Tie, play another round') }],
       });
       if (out === 'tie') {
-        await ctx.say(tx('平票，冇人出局。', 'A tie. Nobody is out.'));
+        await ctx.say(tx('平票，沒有人出局。', 'A tie. Nobody is out.'));
         continue;
       }
       const p = P[out - 1];
       p.alive = false;
       strip();
       await ctx.say(s.opts.reveal
-        ? tx(`${out}號出局，他是${R[p.role].name.zh}。`, `Player ${out} is out. They were ${R[p.role].name.en === 'Undercover' ? 'an Undercover' : 'a ' + R[p.role].name.en}.`)
-        : tx(`${out}號出局。`, `Player ${out} is out.`));
+        ? tx(`${ctx.seat(out).zh}出局，他是${R[p.role].name.zh}。`, `${ucfirst(ctx.seat(out).en)} is out. They were ${R[p.role].name.en === 'Undercover' ? 'an Undercover' : 'a ' + R[p.role].name.en}.`)
+        : tx(`${ctx.seat(out).zh}出局。`, `${ucfirst(ctx.seat(out).en)} is out.`));
       const w = undercoverWinner(P);
       if (w) {
         ctx.phase(ctx.t('gameOver'));
@@ -131,7 +131,7 @@ export default {
           q.role === 'blank' ? '' : ` · ${word(q.role === 'civilian' ? civ : und)}`))));
         return;
       }
-      await ctx.say(tx('臥底仍然喺場上，遊戲繼續。', 'The undercover is still among you. The game continues.'));
+      await ctx.say(tx('臥底仍然在場上，遊戲繼續。', 'The undercover is still among you. The game continues.'));
     }
   },
 };

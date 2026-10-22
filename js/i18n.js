@@ -1,27 +1,54 @@
 // UI strings and helpers to pick the right language.
+// Interface languages: 'zh' (繁體), 'zhs' (简体, converted from 繁體), 'en'.
 
 import { settings, narrLang } from './settings.js';
+import { T2S_FROM, T2S_TO } from './t2s-map.js';
+
+export const UI_LANGS = [
+  { id: 'zh', label: '繁體中文', short: '繁', html: 'zh-Hant' },
+  { id: 'zhs', label: '简体中文', short: '简', html: 'zh-Hans' },
+  { id: 'en', label: 'English', short: 'EN', html: 'en' },
+];
 
 const S = {
   zh: {
     appTitle: '桌遊主持人',
-    appSub: '語音自動主持＋計時，唔使再有人做 MC，大家一齊玩！',
+    appSub: '語音自動主持＋計時，不用再有人當主持，大家一起玩！',
+    heroBadge: '免費 · 免安裝 · 離線可用',
+    heroCta: '開始選遊戲',
+    heroRandom: '隨機選一個',
     players: '玩家人數',
     playersShort: '人',
     minutes: '分鐘',
     roles: '角色',
     options: '設定',
     rules: '玩法簡介',
+    guide: '完整教學',
     start: '開始遊戲',
     back: '返回',
     settings: '設定',
     close: '關閉',
     auto: '自動',
     fixed: '必有',
-    on: '開',
-    off: '關',
-    gamesTitle: '選擇遊戲',
-    tipVoice: '第一次使用請先喺「設定」試聽語音。iPhone 請關閉靜音模式並調高音量。',
+    gamesTitle: '全部遊戲',
+    recent: '最近玩過',
+    favorites: '我的收藏',
+    search: '搜尋遊戲…',
+    anyPlayers: '任何人數',
+    noMatch: '找不到符合的遊戲。',
+    best: '最佳',
+    statGames: '款熱門桌遊',
+    statLangs: '種語音',
+    statFree: '完全免費',
+    featVoice: '語音主持',
+    featVoiceText: '粵語、普通話、English 旁白，夜晚流程全自動。',
+    featDeal: '電子派牌',
+    featDealText: '沒有卡牌也能玩，輪流傳手機查看身份。',
+    featTimer: '智能計時',
+    featTimerText: '討論、發言計時，剩一分鐘自動提醒。',
+    featNames: '叫名主持',
+    featNamesText: '輸入玩家名字，語音直接叫名。',
+    tipVoice: '第一次使用請先在「設定」試聽語音。iPhone 請關閉靜音模式並調高音量。',
     uiLang: '介面語言',
     voiceLang: '語音語言',
     voice: '聲音',
@@ -32,13 +59,16 @@ const S = {
     paceSlow: '慢',
     paceNormal: '正常',
     paceFast: '快',
+    theme: '外觀',
+    themeAuto: '自動',
+    themeDark: '深色',
+    themeLight: '淺色',
     sfx: '提示音效',
     wakeLock: '遊戲中保持螢幕開啟',
     nightDim: '夜晚時螢幕變暗',
     testVoice: '試聽',
-    testLine: '天黑請閉眼。歡迎使用桌遊主持人！',
-    noVoice: '此裝置未有呢種語言嘅語音，會用預設聲音讀出。可以喺系統設定下載語音（例如 iOS：設定 › 輔助使用 › 朗讀內容 › 聲音）。',
-    noSpeech: '此瀏覽器唔支援語音，只會顯示文字。',
+    noVoice: '此裝置沒有這種語言的語音，會用預設聲音讀出。可以在系統設定下載語音（例如 iOS：設定 › 輔助使用 › 朗讀內容 › 聲音）。',
+    noSpeech: '此瀏覽器不支援語音，只會顯示文字。',
     yue: '粵語（廣東話）',
     cmn: '普通話（國語）',
     en: 'English',
@@ -47,14 +77,13 @@ const S = {
     skip: '跳過',
     repeat: '重複',
     exit: '離開',
-    exitConfirm: '確定要結束今局遊戲？',
+    exitConfirm: '確定要結束這局遊戲？',
     paused: '已暫停',
     ready: '準備好，繼續',
     confirm: '確定',
     next: '下一步',
     done: '完成',
     actionTime: '行動時間',
-    timeLeft: '剩餘時間',
     addTime: '+30 秒',
     endTimer: '結束計時',
     gameOver: '遊戲結束',
@@ -62,44 +91,61 @@ const S = {
     changeSetup: '修改設定',
     backToList: '返回遊戲列表',
     passTo: '請將手機交給',
-    seatN: '{n} 號',
     seatPlayer: '{n} 號玩家',
-    tapToReveal: '我是 {n} 號，查看身份',
+    tapToReveal: '我是 {n}，查看身份',
     hideAndPass: '記住了，隱藏',
-    allDealt: '全部玩家已查看身份',
-    dealTitle: '派發身份',
-    dealHint: '其他人請唔好偷看螢幕。',
     yourRole: '你的身份',
-    teamGood: '好人陣營',
-    teamEvil: '壞人陣營',
-    teamNeutral: '第三方',
-    errors: '問題',
-    summary: '配置',
-    reveal: '公開所有身份',
-    selectOne: '請選擇',
-    none: '無',
-    elapsed: '遊戲時間',
-    footer: '開源專案 · 純前端，唔會收集任何資料',
-    installHint: '提示：可以「加入主畫面」當 App 咁用，離線都用得。',
+    dealHint: '其他人請不要偷看螢幕。',
+    names: '玩家名字（可選）',
+    namesHint: '輸入名字後，語音會直接叫名，例如「阿明發言」。留空就用座位號碼。',
+    namePh: '{n} 號',
+    clearNames: '清除名字',
+    share: '分享',
+    copied: '已複製連結',
+    fullscreen: '全螢幕',
+    footer: '開源專案 · 純前端，不會收集任何資料',
+    installHint: '提示：可以「加入主畫面」當 App 使用，離線也能用。',
+    faq: '常見問題',
+    tips: '玩家技巧',
+    howToPlay: '玩法',
   },
   en: {
     appTitle: 'Board Game MC',
     appSub: 'A voice narrator and timer for your table, so nobody has to sit out as the moderator.',
+    heroBadge: 'Free · No install · Works offline',
+    heroCta: 'Pick a game',
+    heroRandom: 'Surprise me',
     players: 'Players',
     playersShort: 'players',
     minutes: 'min',
     roles: 'Roles',
     options: 'Options',
     rules: 'How to play',
+    guide: 'Full guide',
     start: 'Start game',
     back: 'Back',
     settings: 'Settings',
     close: 'Close',
     auto: 'Auto',
     fixed: 'Always',
-    on: 'On',
-    off: 'Off',
-    gamesTitle: 'Pick a game',
+    gamesTitle: 'All games',
+    recent: 'Recently played',
+    favorites: 'Favourites',
+    search: 'Search games…',
+    anyPlayers: 'Any size',
+    noMatch: 'No games match.',
+    best: 'Best',
+    statGames: 'popular games',
+    statLangs: 'voice languages',
+    statFree: 'free forever',
+    featVoice: 'Voice narrator',
+    featVoiceText: 'Cantonese, Mandarin or English narration runs the whole night.',
+    featDeal: 'Digital dealing',
+    featDealText: 'No cards? Pass the phone around to see your role.',
+    featTimer: 'Smart timers',
+    featTimerText: 'Discussion and speaking timers with voice reminders.',
+    featNames: 'Calls you by name',
+    featNamesText: 'Type in player names and the voice uses them.',
     tipVoice: 'First time? Test the voice in Settings. On iPhone, turn off silent mode and raise the volume.',
     uiLang: 'Interface language',
     voiceLang: 'Narration language',
@@ -111,15 +157,18 @@ const S = {
     paceSlow: 'Slow',
     paceNormal: 'Normal',
     paceFast: 'Fast',
+    theme: 'Appearance',
+    themeAuto: 'Auto',
+    themeDark: 'Dark',
+    themeLight: 'Light',
     sfx: 'Sound effects',
     wakeLock: 'Keep screen on while playing',
     nightDim: 'Dim the screen at night',
     testVoice: 'Test',
-    testLine: 'Everyone, close your eyes. Welcome to Board Game MC!',
     noVoice: 'No voice for this language is installed, so the default voice will be used. You can download voices in your system settings.',
     noSpeech: 'This browser has no speech support. Captions only.',
     yue: '粵語 Cantonese',
-    cmn: '普通話 Mandarin',
+    cmn: '普通话 Mandarin',
     en: 'English',
     pause: 'Pause',
     resume: 'Resume',
@@ -133,7 +182,6 @@ const S = {
     next: 'Next',
     done: 'Done',
     actionTime: 'Action time',
-    timeLeft: 'Time left',
     addTime: '+30 s',
     endTimer: 'End timer',
     gameOver: 'Game over',
@@ -141,38 +189,60 @@ const S = {
     changeSetup: 'Change setup',
     backToList: 'All games',
     passTo: 'Pass the phone to',
-    seatN: '#{n}',
     seatPlayer: 'Player {n}',
-    tapToReveal: "I'm player {n}, show my role",
+    tapToReveal: "I'm {n}, show my role",
     hideAndPass: 'Got it, hide',
-    allDealt: 'Everyone has seen their role',
-    dealTitle: 'Deal roles',
-    dealHint: 'Everyone else, look away from the screen.',
     yourRole: 'Your role',
-    teamGood: 'Good team',
-    teamEvil: 'Evil team',
-    teamNeutral: 'Third party',
-    errors: 'Problems',
-    summary: 'Setup',
-    reveal: 'Reveal all roles',
-    selectOne: 'Choose',
-    none: 'None',
-    elapsed: 'Game time',
+    dealHint: 'Everyone else, look away from the screen.',
+    names: 'Player names (optional)',
+    namesHint: 'With names, the voice calls people by name, like "Alex, your turn". Leave blank to use seat numbers.',
+    namePh: 'Player {n}',
+    clearNames: 'Clear names',
+    share: 'Share',
+    copied: 'Link copied',
+    fullscreen: 'Full screen',
     footer: 'Open source · runs in your browser, collects no data',
     installHint: 'Tip: "Add to Home Screen" to use it like an app, even offline.',
+    faq: 'FAQ',
+    tips: 'Tips',
+    howToPlay: 'How to play',
   },
 };
 
+// Hong Kong words that read oddly in Simplified Chinese.
+const HK_TO_CN = [
+  ['芝士大盜', '奶酪大盜'], ['芝士', '奶酪'], ['的士', '出租車'], ['電單車', '摩托車'], ['單車', '自行車'], ['雪櫃', '冰箱'],
+  ['朱古力', '巧克力'], ['薄餅', '披薩'], ['結他', '吉他'], ['色士風', '薩克斯風'], ['波鞋', '運動鞋'], ['頸巾', '圍巾'],
+  ['程式員', '程序員'], ['手提電腦', '筆記本電腦'], ['冷氣機', '空調'], ['沙律', '沙拉'], ['牛扒', '牛排'], ['雪糕', '冰淇淋'],
+  ['意大利粉', '意大利麵'], ['攀石', '攀岩'], ['影相', '拍照'], ['迫地鐵', '擠地鐵'], ['打麻雀', '打麻將'], ['麻雀館', '麻將館'],
+  ['漢堡包', '漢堡'], ['風筒', '吹風機'], ['電飯煲', '電飯鍋'], ['雪條', '冰棍'], ['雨褸', '雨衣'], ['烏克麗麗', '尤克里里'],
+  ['八爪魚', '章魚'], ['健身室', '健身房'], ['機師', '飛行員'], ['戲院', '電影院'], ['消防局', '消防站'], ['唱K', '唱卡拉OK'],
+  ['資訊', '信息'], ['螢幕', '屏幕'], ['設定', '設置'], ['預設', '默認'],
+];
+
+const T2S = new Map([...T2S_FROM].map((c, i) => [c, [...T2S_TO][i]]));
+
+/** Convert Traditional Chinese to Simplified (phrases first, then characters). */
+export function toHans(s) {
+  if (!s) return s;
+  for (const [a, b] of HK_TO_CN) if (s.includes(a)) s = s.split(a).join(b);
+  let out = '';
+  for (const ch of s) out += T2S.get(ch) ?? ch;
+  return out;
+}
+
 export function t(key, vars) {
-  let s = S[settings.uiLang]?.[key] ?? S.en[key] ?? key;
+  const lang = settings.uiLang === 'en' ? 'en' : 'zh';
+  let s = S[lang]?.[key] ?? S.en[key] ?? key;
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
-  return s;
+  return settings.uiLang === 'zhs' ? toHans(s) : s;
 }
 
 function pickLang(obj, lang) {
   if (obj == null) return '';
   if (typeof obj === 'string' || typeof obj === 'number') return String(obj);
   if (Array.isArray(obj)) return obj.map((o) => pickLang(o, lang)).join('');
+  if (lang === 'zhs') return toHans(obj.zh ?? obj.en ?? '');
   return obj[lang] ?? obj.en ?? obj.zh ?? '';
 }
 
@@ -180,3 +250,9 @@ function pickLang(obj, lang) {
 export const L = (obj) => pickLang(obj, settings.uiLang);
 /** Text in the narration language. */
 export const N = (obj) => pickLang(obj, narrLang());
+/** Pick text for an explicit language ('zh' | 'zhs' | 'en'), used by the page builder. */
+export const inLang = (obj, lang) => pickLang(obj, lang);
+export const strings = (lang) => (k) => {
+  const s = S[lang === 'en' ? 'en' : 'zh'][k] ?? k;
+  return lang === 'zhs' ? toHans(s) : s;
+};

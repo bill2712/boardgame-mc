@@ -1,13 +1,13 @@
-import { tx, shuffle, randInt } from '../util.js';
+import { tx, shuffle, randInt, ucfirst } from '../util.js';
 
 const R = {
-  wolf: { name: tx('狼人', 'Werewolf'), team: 'evil', emoji: '🐺', desc: tx('每晚同其他狼人一齊殺一位玩家。', 'Each night, choose a victim with the other werewolves.') },
+  wolf: { name: tx('狼人', 'Werewolf'), team: 'evil', emoji: '🐺', desc: tx('每晚和其他狼人一起殺一位玩家。', 'Each night, choose a victim with the other werewolves.') },
   seer: { name: tx('預言家', 'Seer'), team: 'good', god: true, emoji: '🔮', desc: tx('每晚查驗一位玩家是好人還是狼人。', 'Each night, check whether a player is a werewolf.') },
-  witch: { name: tx('女巫', 'Witch'), team: 'good', god: true, emoji: '🧪', desc: tx('有一瓶解藥同一瓶毒藥，各用一次；同一晚只可以用一瓶。', 'One healing potion and one poison, each usable once; at most one per night.') },
+  witch: { name: tx('女巫', 'Witch'), team: 'good', god: true, emoji: '🧪', desc: tx('有一瓶解藥和一瓶毒藥，各用一次；同一晚只可以用一瓶。', 'One healing potion and one poison, each usable once; at most one per night.') },
   hunter: { name: tx('獵人', 'Hunter'), team: 'good', god: true, emoji: '🏹', desc: tx('死亡時可以開槍帶走一位玩家（被毒死除外）。', 'When you die you may shoot a player (not if poisoned).') },
   guard: { name: tx('守衛', 'Guard'), team: 'good', god: true, emoji: '🛡️', desc: tx('每晚守護一位玩家免受狼刀，不可以連續兩晚守同一人。', 'Each night protect a player from the wolves; not the same player two nights in a row.') },
   idiot: { name: tx('白痴', 'Idiot'), team: 'good', god: true, emoji: '🤪', desc: tx('被投票出局時翻牌免死，但之後失去投票權。', 'If voted out, reveal and survive, but lose your vote.') },
-  villager: { name: tx('平民', 'Villager'), team: 'good', emoji: '👨‍🌾', desc: tx('冇特殊能力，靠推理找出狼人。', 'No special ability. Find the werewolves by reasoning.') },
+  villager: { name: tx('平民', 'Villager'), team: 'good', emoji: '👨‍🌾', desc: tx('沒有特殊能力，靠推理找出狼人。', 'No special ability. Find the werewolves by reasoning.') },
 };
 export const WW_ROLES = R;
 
@@ -62,11 +62,11 @@ export default {
   time: '30–60',
   rules: {
     zh: [
-      '唔使法官！手機會輪流派身份，夜晚有角色的玩家輪流喺手機上揀目標（請將手機放喺枱中間）。',
+      '不需要法官！手機會輪流派發身份，夜晚有能力的角色輪流在手機上選擇目標（請將手機放在桌子中間）。',
       '夜晚次序：守衛 → 狼人 → 女巫 → 預言家。天亮後手機會公佈死訊。',
       '白天按座位順序發言，然後投票放逐一位玩家。',
-      '好人：放逐所有狼人就贏。狼人：屠邊（殺光所有神職或所有平民）或屠城（殺光所有好人）就贏。',
-      '同守同救都會死；毒藥唔受守衛影響；獵人被毒死唔可以開槍。',
+      '好人：放逐所有狼人即獲勝。狼人：屠邊（殺光所有神職或所有平民）或屠城（殺光所有好人）即獲勝。',
+      '同守同救也會死；毒藥不受守衛影響；獵人被毒死不能開槍。',
     ],
     en: [
       'No moderator needed. The phone deals roles, and at night each role takes a turn choosing on the phone (keep it in the middle of the table).',
@@ -112,7 +112,7 @@ export default {
     const warnings = [];
     if (villagers < 0) errors.push(tx('角色多過玩家人數。', 'More roles than players.'));
     if ((r.wolf || 0) >= s.n / 2) errors.push(tx('狼人太多。', 'Too many werewolves.'));
-    if (s.opts.win === 'side' && villagers === 0) warnings.push(tx('冇平民，屠邊只計神職。', 'No villagers: "side" only counts special roles.'));
+    if (s.opts.win === 'side' && villagers === 0) warnings.push(tx('沒有平民，屠邊只計算神職。', 'No villagers: "side" only counts special roles.'));
     const gods = special - (r.wolf || 0);
     return { errors, warnings, summary: tx(`狼人 ${r.wolf} · 神職 ${gods} · 平民 ${Math.max(0, villagers)}`, `${r.wolf} werewolves · ${gods} specials · ${Math.max(0, villagers)} villagers`) };
   },
@@ -143,7 +143,7 @@ export default {
       team: R[p.role].team,
       teamLabel: p.role === 'wolf' ? tx('狼人陣營', 'Werewolf team') : tx('好人陣營', 'Village team'),
       body: [R[p.role].desc, p.role === 'wolf' && wolvesSeats.length > 1
-        ? tx(`你的狼隊友：${wolvesSeats.filter((x) => x !== p.seat).join('、')} 號`, `Your fellow werewolves: ${wolvesSeats.filter((x) => x !== p.seat).join(', ')}`)
+        ? tx(`你的狼隊友：${ctx.seats(wolvesSeats.filter((x) => x !== p.seat)).zh}`, `Your fellow werewolves: ${ctx.seats(wolvesSeats.filter((x) => x !== p.seat)).en}`)
         : null].filter(Boolean),
     })));
 
@@ -158,12 +158,12 @@ export default {
       if (!p.alive) return;
       p.alive = false;
       ctx.board(roleStatus());
-      if (s.opts.reveal) await ctx.say(tx(`${seat}號的身份是${R[p.role].name.zh}。`, `Player ${seat} was the ${R[p.role].name.en}.`));
+      if (s.opts.reveal) await ctx.say(tx(`${ctx.seat(seat).zh}的身份是${R[p.role].name.zh}。`, `${ucfirst(ctx.seat(seat).en)} was the ${R[p.role].name.en}.`));
       if (p.role === 'hunter' && cause !== 'poison') {
-        await ctx.say(tx(`${seat}號是獵人，可以選擇開槍帶走一位玩家。`, `Player ${seat} is the Hunter and may shoot one player.`));
+        await ctx.say(tx(`${ctx.seat(seat).zh}是獵人，可以選擇開槍帶走一位玩家。`, `${ucfirst(ctx.seat(seat).en)} is the Hunter and may shoot one player.`));
         const target = await ctx.choose({ title: tx('獵人開槍', 'Hunter shoots'), items: seatGrid((q) => q.seat !== seat), extra: [{ id: 'none', label: tx('不開槍', "Don't shoot") }] });
         if (target !== 'none') {
-          await ctx.say(tx(`獵人開槍帶走了${target}號。`, `The Hunter shot player ${target}.`));
+          await ctx.say(tx(`獵人開槍帶走了${ctx.seat(target).zh}。`, `The Hunter shot ${ctx.seat(target).en}.`));
           await kill(target, 'shot');
         }
       }
@@ -193,7 +193,7 @@ export default {
         if (guard.alive) {
           const g = await ctx.choose({
             title: tx('守護誰？', 'Protect whom?'),
-            text: lastGuard ? tx(`不可以連續兩晚守 ${lastGuard} 號。`, `You can't protect player ${lastGuard} two nights in a row.`) : null,
+            text: lastGuard ? tx(`不可以連續兩晚守 ${ctx.seat(lastGuard).zh}。`, `You can't protect ${ctx.seat(lastGuard).en} two nights in a row.`) : null,
             items: seatGrid((p) => p.seat !== lastGuard),
             extra: [{ id: 'none', label: tx('空守', 'Protect no one') }],
           });
@@ -221,30 +221,30 @@ export default {
           const canSelf = s.opts.selfSave === 'always' || (s.opts.selfSave === 'first' && night === 1);
           if (witch.heal && wolfTarget != null && (wolfTarget !== w.seat || canSelf)) {
             const r = await ctx.buttons({
-              title: tx(`今晚被殺的是 ${wolfTarget} 號`, `Tonight's victim: player ${wolfTarget}`),
+              title: tx(`今晚被殺的是 ${ctx.seat(wolfTarget).zh}`, `Tonight's victim: ${ctx.seat(wolfTarget).en}`),
               buttons: [
                 { id: 'heal', label: tx('🧪 用解藥救他', '🧪 Heal them'), style: 'good' },
-                { id: 'no', label: tx('唔救', "Don't heal") },
+                { id: 'no', label: tx('不救', "Don't heal") },
               ],
             });
             if (r === 'heal') { saved = true; witch.heal = false; }
           } else {
-            const why = !witch.heal ? tx('解藥已經用咗。', 'Healing potion already used.')
-              : wolfTarget == null ? tx('今晚冇人被殺。', 'Nobody was attacked tonight.')
-                : tx(`今晚被殺的是 ${wolfTarget} 號（你自己），規則不可以自救。`, `Tonight's victim is player ${wolfTarget} (you). You may not heal yourself.`);
+            const why = !witch.heal ? tx('解藥已經用過了。', 'Healing potion already used.')
+              : wolfTarget == null ? tx('今晚沒有人被殺。', 'Nobody was attacked tonight.')
+                : tx(`今晚被殺的是 ${ctx.seat(wolfTarget).zh}（你自己），規則不可以自救。`, `Tonight's victim is ${ctx.seat(wolfTarget).en} (you). You may not heal yourself.`);
             await ctx.buttons({ title: why, buttons: [{ id: 'ok', label: ctx.t('next') }] });
           }
           await ctx.say(tx('你要用毒藥嗎？', 'Will you use your poison?'));
           if (witch.poison && !saved) {
             const pz = await ctx.choose({
-              title: tx('毒邊個？', 'Poison whom?'),
+              title: tx('毒誰？', 'Poison whom?'),
               items: seatGrid((p) => p.seat !== w.seat),
-              extra: [{ id: 'none', label: tx('唔用毒藥', "Don't poison") }],
+              extra: [{ id: 'none', label: tx('不用毒藥', "Don't poison") }],
             });
             if (pz !== 'none') { poisonTarget = pz; witch.poison = false; }
           } else {
             await ctx.buttons({
-              title: !witch.poison ? tx('毒藥已經用咗。', 'Poison already used.') : tx('同一晚只可以用一瓶藥。', 'Only one potion per night.'),
+              title: !witch.poison ? tx('毒藥已經用過了。', 'Poison already used.') : tx('同一晚只可以用一瓶藥。', 'Only one potion per night.'),
               buttons: [{ id: 'ok', label: ctx.t('next') }],
             });
           }
@@ -263,7 +263,7 @@ export default {
           const c = await ctx.choose({ title: tx('查驗誰？', 'Check whom?'), items: seatGrid((p) => p.seat !== seer.seat) });
           const bad = P[c - 1].role === 'wolf';
           await ctx.buttons({
-            title: bad ? tx(`${c} 號是 👎 狼人`, `Player ${c} is 👎 a WEREWOLF`) : tx(`${c} 號是 👍 好人`, `Player ${c} is 👍 GOOD`),
+            title: bad ? tx(`${ctx.seat(c).zh}是 👎 狼人`, `${ucfirst(ctx.seat(c).en)} is 👎 a WEREWOLF`) : tx(`${ctx.seat(c).zh}是 👍 好人`, `${ucfirst(ctx.seat(c).en)} is 👍 GOOD`),
             buttons: [{ id: 'ok', label: ctx.t('next') }],
           });
         } else await dummy();
@@ -292,11 +292,11 @@ export default {
       const living = alive().map((p) => p.seat);
       const start = living[Math.floor(Math.random() * living.length)];
       const order = [...living.filter((x) => x >= start), ...living.filter((x) => x < start)];
-      await ctx.say(tx(`由 ${start} 號開始，順時針發言。`, `Speeches start with player ${start} and go clockwise.`));
+      await ctx.say(tx(`由 ${ctx.seat(start).zh}開始，順時針發言。`, `Speeches start with ${ctx.seat(start).en} and go clockwise.`));
       if (s.opts.speak > 0) {
         for (const seat of order) {
-          await ctx.say(tx(`${seat} 號發言。`, `Player ${seat}, your turn.`), { after: 0.2 });
-          await ctx.timer(s.opts.speak, { title: tx(`${seat} 號發言`, `Player ${seat} speaking`), endLabel: tx('發言完畢', 'Done'), silentEnd: true, warnings: [10] });
+          await ctx.say(tx(`${ctx.seat(seat).zh}發言。`, `${ucfirst(ctx.seat(seat).en)}, your turn.`), { after: 0.2 });
+          await ctx.timer(s.opts.speak, { title: tx(`${ctx.seat(seat).zh}發言`, `${ucfirst(ctx.seat(seat).en)} speaking`), endLabel: tx('發言完畢', 'Done'), silentEnd: true, warnings: [10] });
         }
       } else {
         await ctx.ready(tx('發言完畢，開始投票', 'Speeches done, start voting'));
@@ -305,19 +305,19 @@ export default {
       // ---------- vote ----------
       await ctx.say(tx('請投票。三、二、一，同時指向你要放逐的玩家。', 'Time to vote. Three, two, one: point at the player you want to exile.'));
       const out = await ctx.choose({
-        title: tx('邊個被放逐？', 'Who was exiled?'),
+        title: tx('誰被放逐？', 'Who was exiled?'),
         items: seatGrid(),
-        extra: [{ id: 'none', label: tx('平票／冇人出局', 'Tie / no one') }],
+        extra: [{ id: 'none', label: tx('平票／沒有人出局', 'Tie / no one') }],
       });
       if (out === 'none') {
-        await ctx.say(tx('今日冇人被放逐。', 'Nobody is exiled today.'));
+        await ctx.say(tx('今天沒有人被放逐。', 'Nobody is exiled today.'));
       } else {
         const p = P[out - 1];
         if (p.role === 'idiot' && p.canVote) {
           p.canVote = false;
-          await ctx.say(tx(`${out}號翻牌：他是白痴！可以留在場上，但之後失去投票權。`, `Player ${out} reveals: the Idiot! They stay in the game but can no longer vote.`));
+          await ctx.say(tx(`${ctx.seat(out).zh}翻牌：他是白痴！可以留在場上，但之後失去投票權。`, `${ucfirst(ctx.seat(out).en)} reveals: the Idiot! They stay in the game but can no longer vote.`));
         } else {
-          await ctx.say(tx(`${out}號被放逐，請發表遺言。`, `Player ${out} is exiled. Last words, please.`));
+          await ctx.say(tx(`${ctx.seat(out).zh}被放逐，請發表遺言。`, `${ucfirst(ctx.seat(out).en)} is exiled. Last words, please.`));
           if (s.opts.speak > 0) await ctx.timer(s.opts.speak, { title: tx('遺言', 'Last words'), silentEnd: true, warnings: [10] });
           await kill(out, 'vote');
         }

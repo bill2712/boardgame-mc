@@ -6,12 +6,12 @@ const ROLES = [
   { id: 'minion', name: tx('爪牙', 'Minion'), team: 'evil', max: 1, desc: tx('知道誰是狼人，幫狼人獲勝。', 'Knows the werewolves and helps them win.') },
   { id: 'mason', name: tx('守夜人', 'Mason'), team: 'good', max: 2, desc: tx('兩位守夜人互相確認。', 'The two Masons see each other.') },
   { id: 'seer', name: tx('預言家', 'Seer'), team: 'good', max: 1, desc: tx('查看一位玩家的卡，或中間兩張卡。', "Views one player's card or two center cards.") },
-  { id: 'robber', name: tx('強盜', 'Robber'), team: 'good', max: 1, desc: tx('同一位玩家交換卡，然後查看新卡。', 'Swaps with another player and views the new card.') },
+  { id: 'robber', name: tx('強盜', 'Robber'), team: 'good', max: 1, desc: tx('和一位玩家交換卡，然後查看新卡。', 'Swaps with another player and views the new card.') },
   { id: 'troublemaker', name: tx('搗蛋鬼', 'Troublemaker'), team: 'good', max: 1, desc: tx('交換另外兩位玩家的卡（不可查看）。', "Swaps two other players' cards without looking.") },
-  { id: 'drunk', name: tx('酒鬼', 'Drunk'), team: 'good', max: 1, desc: tx('同中間一張卡交換，不可查看。', 'Swaps with a center card without looking.') },
+  { id: 'drunk', name: tx('酒鬼', 'Drunk'), team: 'good', max: 1, desc: tx('和中間一張卡交換，不可查看。', 'Swaps with a center card without looking.') },
   { id: 'insomniac', name: tx('失眠者', 'Insomniac'), team: 'good', max: 1, desc: tx('最後查看自己的卡。', 'Looks at their own card at the end of the night.') },
-  { id: 'villager', name: tx('村民', 'Villager'), team: 'good', max: 3, desc: tx('冇特殊能力。', 'No special ability.') },
-  { id: 'hunter', name: tx('獵人', 'Hunter'), team: 'good', max: 1, desc: tx('如果被投死，你指著的玩家都會死。', 'If you die, the player you voted for dies too.') },
+  { id: 'villager', name: tx('村民', 'Villager'), team: 'good', max: 3, desc: tx('沒有特殊能力。', 'No special ability.') },
+  { id: 'hunter', name: tx('獵人', 'Hunter'), team: 'good', max: 1, desc: tx('如果你被投死，你指著的玩家也會死。', 'If you die, the player you voted for dies too.') },
   { id: 'tanner', name: tx('皮匠', 'Tanner'), team: 'neutral', max: 1, desc: tx('想死：被投死就獨贏。', 'Hates his job: wins only if he dies.') },
 ];
 
@@ -42,7 +42,7 @@ export default {
       '卡牌數量 = 玩家人數 + 3：每人一張，中間放三張。',
       '夜晚各角色按次序醒來行動，卡牌可能被交換，你最後的身份以面前的卡為準。',
       '天亮後討論，時間到所有人同時指向一位玩家，最高票（至少 2 票）的玩家死亡。',
-      '死者之中有狼人，村民陣營勝；冇狼人死，狼人陣營勝；皮匠死就皮匠獨贏。',
+      '死者之中有狼人，村民陣營勝；沒有狼人死，狼人陣營勝；皮匠死則皮匠獨贏。',
     ],
     en: [
       'Use player count + 3 cards: one for each player and three in the center.',
@@ -65,9 +65,9 @@ export default {
     const need = s.n + 3;
     const errors = [];
     const warnings = [];
-    if (total !== need) errors.push(tx(`卡牌總數要等於玩家人數 + 3（而家 ${total} 張，需要 ${need} 張）。`, `Total cards must be players + 3 (now ${total}, need ${need}).`));
-    if (s.roles.mason === 1) warnings.push(tx('守夜人通常一齊用兩張。', 'Masons are normally used as a pair.'));
-    if (!s.roles.werewolf) warnings.push(tx('冇狼人卡。', 'No Werewolf cards.'));
+    if (total !== need) errors.push(tx(`卡牌總數要等於玩家人數 + 3（現在 ${total} 張，需要 ${need} 張）。`, `Total cards must be players + 3 (now ${total}, need ${need}).`));
+    if (s.roles.mason === 1) warnings.push(tx('守夜人通常兩張一起使用。', 'Masons are normally used as a pair.'));
+    if (!s.roles.werewolf) warnings.push(tx('沒有狼人卡。', 'No Werewolf cards.'));
     return { errors, warnings, summary: tx(`${s.n} 位玩家 · ${need} 張卡（中間 3 張）`, `${s.n} players · ${need} cards (3 in the center)`) };
   },
 
@@ -117,13 +117,13 @@ export default {
       await step(tx('預言家請睜開眼睛。你可以查看另一位玩家的卡，或者中間的兩張卡。', "Seer, wake up. You may look at another player's card or two of the center cards."), tx('預言家請閉上眼睛。', 'Seer, close your eyes.'));
     }
     if (has('robber')) {
-      await step(tx('強盜請睜開眼睛。你可以將自己的卡同另一位玩家交換，然後查看你的新卡。', "Robber, wake up. You may exchange your card with another player's card, and then view your new card."), tx('強盜請閉上眼睛。', 'Robber, close your eyes.'));
+      await step(tx('強盜請睜開眼睛。你可以將自己的卡和另一位玩家交換，然後查看你的新卡。', "Robber, wake up. You may exchange your card with another player's card, and then view your new card."), tx('強盜請閉上眼睛。', 'Robber, close your eyes.'));
     }
     if (has('troublemaker')) {
       await step(tx('搗蛋鬼請睜開眼睛。你可以交換另外兩位玩家的卡，但不可以查看。', 'Troublemaker, wake up. You may exchange cards between two other players without looking.'), tx('搗蛋鬼請閉上眼睛。', 'Troublemaker, close your eyes.'));
     }
     if (has('drunk')) {
-      await step(tx('酒鬼請睜開眼睛，將你的卡同中間的一張卡交換，不可以查看。', 'Drunk, wake up and exchange your card with a card from the center without looking.'), tx('酒鬼請閉上眼睛。', 'Drunk, close your eyes.'));
+      await step(tx('酒鬼請睜開眼睛，將你的卡和中間的一張卡交換，不可以查看。', 'Drunk, wake up and exchange your card with a card from the center without looking.'), tx('酒鬼請閉上眼睛。', 'Drunk, close your eyes.'));
     }
     if (has('insomniac')) {
       await step(tx('失眠者請睜開眼睛，查看你自己的卡。', 'Insomniac, wake up and look at your card.'), tx('失眠者請閉上眼睛。', 'Insomniac, close your eyes.'), 0.7);
@@ -137,7 +137,7 @@ export default {
     await ctx.timer(s.opts.talk * 60, { title: tx('討論時間', 'Discussion') });
     await ctx.say(tx('三、二、一，所有人同時指向你要投票的玩家！', 'Three, two, one: everyone point at the player you vote for!'), { after: 1 });
     ctx.phase(tx('結算', 'Result'));
-    await ctx.say(tx('最高票而且至少兩票的玩家死亡，請翻開所有卡牌。有狼人死，村民勝利；冇狼人死，狼人勝利；皮匠死，皮匠勝利。',
+    await ctx.say(tx('最高票而且至少兩票的玩家死亡，請翻開所有卡牌。有狼人死，村民勝利；沒有狼人死，狼人勝利；皮匠死，皮匠勝利。',
       'The player with the most votes, at least two, dies. Flip all cards. If a werewolf died, the village wins. If not, the werewolves win. If the Tanner died, the Tanner wins.'));
   },
 };

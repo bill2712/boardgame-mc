@@ -1,4 +1,4 @@
-import { tx, shuffle, pick, spokenDuration } from '../util.js';
+import { tx, shuffle, pick, spokenDuration, ucfirst } from '../util.js';
 import { INSIDER_WORDS } from './words.js';
 
 export default {
@@ -10,10 +10,10 @@ export default {
   time: '15',
   rules: {
     zh: [
-      '大師（公開）同內鬼（秘密）知道答案詞語，其他人是平民。',
+      '大師（公開）和內鬼（秘密）知道答案詞語，其他人是平民。',
       '大家向大師問是非題，大師只可以答「是」、「不是」或「不知道」，限時內猜中詞語。',
-      '猜中後，用剛才花了的時間討論，找出內鬼。時間到大家同時投票。',
-      '投中內鬼：大師同平民勝；投錯：內鬼勝。限時內猜唔中：全部人輸。',
+      '猜中後，用剛才所花的時間討論，找出內鬼。時間到大家同時投票。',
+      '投中內鬼：大師和平民勝；投錯：內鬼勝。限時內猜不中：全部人輸。',
     ],
     en: [
       'The Master (public) and the Insider (secret) know the word. Everyone else is a Common.',
@@ -23,8 +23,8 @@ export default {
     ],
   },
   roles: [
-    { id: 'master', name: tx('大師', 'Master'), team: 'good', fixed: true, desc: tx('知道詞語，公開身份，只可以答是非。', 'Knows the word, is public, answers yes/no only.') },
-    { id: 'insider', name: tx('內鬼', 'Insider'), team: 'evil', fixed: true, desc: tx('知道詞語，暗中引導大家猜中，但唔好被發現。', 'Knows the word and secretly steers the group without being caught.') },
+    { id: 'master', name: tx('大師', 'Master'), team: 'good', fixed: true, desc: tx('知道詞語，公開身份，只可以回答是非。', 'Knows the word, is public, answers yes/no only.') },
+    { id: 'insider', name: tx('內鬼', 'Insider'), team: 'evil', fixed: true, desc: tx('知道詞語，暗中引導大家猜中，但不要被發現。', 'Knows the word and secretly steers the group without being caught.') },
     { id: 'common', name: tx('平民', 'Common'), team: 'good', auto: true, desc: tx('問問題猜詞，然後揪出內鬼。', 'Asks questions, then finds the Insider.') },
   ],
   options: [
@@ -56,15 +56,15 @@ export default {
       team: id === 'insider' ? 'evil' : 'good',
       title: id === 'master' ? tx('大師', 'Master') : id === 'insider' ? tx('內鬼', 'Insider') : tx('平民', 'Common'),
       body: id === 'common'
-        ? tx('你唔知道詞語。問大師是非題去猜，之後揪出內鬼。', "You don't know the word. Ask the Master yes/no questions, then find the Insider.")
+        ? tx('你不知道詞語。向大師提出是非題去猜，之後揪出內鬼。', "You don't know the word. Ask the Master yes/no questions, then find the Insider.")
         : [tx(`秘密詞語：${word}`, `Secret word: ${word}`), id === 'master'
-          ? tx('開始時公開你是大師。只可以答「是」、「不是」、「不知道」。', 'Reveal yourself as the Master. Answer only "Yes", "No" or "I don\'t know".')
-          : tx('暗中引導大家猜中，但唔好太明顯！', "Steer everyone toward the word, but don't be obvious!")],
+          ? tx('開始時公開你是大師。只可以回答「是」、「不是」、「不知道」。', 'Reveal yourself as the Master. Answer only "Yes", "No" or "I don\'t know".')
+          : tx('暗中引導大家猜中，但不要太明顯！', "Steer everyone toward the word, but don't be obvious!")],
     })));
 
     ctx.phase(tx('猜詞', 'Guessing'));
-    await ctx.say(tx(`${masterSeat}號是大師。大家輪流向大師提出是非題，大師只可以回答是、不是或者不知道。猜中就按「猜中了」。準備，開始！`,
-      `Player ${masterSeat} is the Master. Ask the Master yes or no questions. The Master may only answer yes, no, or I don't know. Tap "Guessed it" when someone gets it. Ready, go!`));
+    await ctx.say(tx(`${ctx.seat(masterSeat).zh}是大師。大家輪流向大師提出是非題，大師只可以回答是、不是或者不知道。猜中就按「猜中了」。準備，開始！`,
+      `${ucfirst(ctx.seat(masterSeat).en)} is the Master. Ask the Master yes or no questions. The Master may only answer yes, no, or I don't know. Tap "Guessed it" when someone gets it. Ready, go!`));
     const r = await ctx.timer(s.opts.guess * 60, {
       title: tx('猜詞時間', 'Guessing time'),
       buttons: [{ id: 'got', label: tx('🎉 猜中了！', '🎉 Guessed it!') }],
@@ -72,17 +72,17 @@ export default {
       silentEnd: true,
     });
     if (r.reason !== 'got') {
-      await ctx.say(tx(`時間到！冇人猜中，所有人都輸了。答案是${word}，內鬼是${insiderSeat}號。`, `Time's up! Nobody guessed it, so everyone loses. The word was ${word}, and the Insider was player ${insiderSeat}.`));
+      await ctx.say(tx(`時間到！沒有人猜中，所有人都輸了。答案是${word}，內鬼是${ctx.seat(insiderSeat).zh}。`, `Time's up! Nobody guessed it, so everyone loses. The word was ${word}, and the Insider was ${ctx.seat(insiderSeat).en}.`));
       return;
     }
     const talk = Math.max(15, Math.round(r.elapsed));
     const d = spokenDuration(talk);
     ctx.phase(tx('揪出內鬼', 'Find the Insider'));
-    await ctx.say(tx(`猜中了！答案是${word}。你們有${d.zh}時間討論，邊個是內鬼？`, `Correct! The word was ${word}. You have ${d.en} to discuss who the Insider is.`));
+    await ctx.say(tx(`猜中了！答案是${word}。你們有${d.zh}時間討論，誰是內鬼？`, `Correct! The word was ${word}. You have ${d.en} to discuss who the Insider is.`));
     await ctx.timer(talk, { title: tx('討論時間', 'Discussion') });
     await ctx.say(tx('三、二、一，所有人同時指向你認為是內鬼的玩家！', 'Three, two, one: everyone point at the Insider!'), { after: 1 });
     await ctx.buttons({ buttons: [{ id: 'r', label: tx('公開內鬼', 'Reveal the Insider'), style: 'primary' }] });
     ctx.phase(tx('結算', 'Result'));
-    await ctx.say(tx(`內鬼是${insiderSeat}號！投中的話大師同平民勝利，否則內鬼勝利。`, `The Insider is player ${insiderSeat}! If you voted them out, the Master and Commons win. Otherwise the Insider wins.`));
+    await ctx.say(tx(`內鬼是${ctx.seat(insiderSeat).zh}！投中的話大師和平民勝利，否則內鬼勝利。`, `The Insider is ${ctx.seat(insiderSeat).en}! If you voted them out, the Master and Commons win. Otherwise the Insider wins.`));
   },
 };
