@@ -304,6 +304,8 @@ export class Runner {
    */
   async deal(cards) {
     await this.gate();
+    // Remembered so players can look at their role again later (🪪 button).
+    this.dealtCards = cards;
     for (const card of cards) {
       const who = seatLabel(card.seat);
       // Step 1: hand over (card face down).
@@ -322,17 +324,15 @@ export class Runner {
         this.abortPromise.catch(reject);
         this.view.stage(h('div', { class: 'deal' },
           h('div', { class: 'muted' }, `${who} · ${t('yourRole')}`),
-          h('div', { class: `role-card flip-in team-${card.team || 'neutral'}` },
-            card.emoji ? h('div', { class: 'card-emoji' }, card.emoji) : null,
-            h('div', { class: 'card-title' }, L(card.title)),
-            card.teamLabel ? h('div', { class: 'card-team' }, L(card.teamLabel)) : null,
-            card.body ? h('div', { class: 'card-body' }, [].concat(card.body).map((b) => h('p', {}, L(b)))) : null),
+          renderRoleCard(card),
           h('button', { class: 'btn big', onclick: resolve }, '🙈 ', t('hideAndPass')),
         ));
       });
     }
     this.view.stage(null);
-    await this.say(tx('全部玩家已查看身份。', 'Everyone has seen their role.'), { after: 0.3 });
+    this.view.onDealt?.(cards);
+    await this.say(tx('全部玩家已查看身份。忘記身份的話，可以按畫面上方的身份卡按鈕再看一次。',
+      'Everyone has seen their role. If you forget yours, tap the ID card button at the top to look again.'), { after: 0.3 });
   }
 
   /** Persistent info panel (e.g. quest board). Pass null to clear. */
@@ -388,7 +388,16 @@ export function seatText(n) {
   return name ? tx(name, name) : tx(`${n}號`, `player ${n}`);
 }
 
-function seatLabel(n) {
+/** The face of a role card (used when dealing and when looking again). */
+export function renderRoleCard(card) {
+  return h('div', { class: `role-card flip-in team-${card.team || 'neutral'}` },
+    card.emoji ? h('div', { class: 'card-emoji' }, card.emoji) : null,
+    h('div', { class: 'card-title' }, L(card.title)),
+    card.teamLabel ? h('div', { class: 'card-team' }, L(card.teamLabel)) : null,
+    card.body ? h('div', { class: 'card-body' }, [].concat(card.body).map((b) => h('p', {}, L(b)))) : null);
+}
+
+export function seatLabel(n) {
   const name = playerName(n);
   return name ? `${name} (${n})` : t('seatPlayer', { n });
 }

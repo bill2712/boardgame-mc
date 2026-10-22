@@ -3,7 +3,7 @@ import { settings, saveSettings, loadSetup, saveSetup, markPlayed, toggleFavorit
 import { t, L, N, UI_LANGS } from './i18n.js';
 import { GAMES, gameById, makeSetup, restoreSetup } from './games/index.js';
 import { CATEGORIES } from './content.js';
-import { Runner } from './runner.js';
+import { Runner, renderRoleCard, seatLabel, playerName as playerNameOf } from './runner.js';
 import { supported as ttsSupported, voicesFor, currentVoice, onVoices, cancel, unlockWith, onStatus, status as ttsStatus, resetVoiceMemory } from './speech.js';
 import { unlockAudio } from './sound.js';
 import { confetti, sky } from './fx.js';
@@ -363,6 +363,7 @@ async function startGame(game, setup) {
     stage: h('div', { class: 'stage' }),
     pausedBadge: h('div', { class: 'paused-badge hidden' }, '⏸ ', t('paused')),
     voiceBanner: h('div', { class: 'voice-banner hidden', role: 'alert' }),
+    roleBtn: h('button', { class: 'icon-btn small role-btn hidden', 'aria-label': t('myRole'), title: t('myRole') }, '🪪'),
   };
   const view = {
     caption(text) {
@@ -388,6 +389,7 @@ async function startGame(game, setup) {
       document.body.classList.toggle('night', !!night);
       document.body.classList.toggle('day', !night);
     },
+    onDealt() { els.roleBtn.classList.remove('hidden'); },
     onPause(p) {
       els.pausedBadge.classList.toggle('hidden', !p);
       pauseBtn.replaceChildren(h('span', { class: 'ctl-ico' }, p ? '▶' : '⏸'), h('span', {}, p ? t('resume') : t('pause')));
@@ -396,6 +398,7 @@ async function startGame(game, setup) {
 
   runner = new Runner(view);
   const r = runner;
+  els.roleBtn.addEventListener('click', () => { if (r.dealtCards) openRoleRecall(r, r.dealtCards); });
   const paintVoice = (st) => {
     const bad = ['failed', 'blocked', 'silent', 'unsupported'].includes(st.state);
     els.voiceBanner.classList.toggle('hidden', !bad);
@@ -418,6 +421,7 @@ async function startGame(game, setup) {
       h('button', { class: 'icon-btn', 'aria-label': t('exit'), onclick: () => { if (confirm(t('exitConfirm'))) { location.hash = `#/game/${game.id}`; route(); } } }, '✕'),
       h('div', { class: 'play-title' }, h('div', { class: 'play-game' }, `${game.emoji} ${L(game.name)}`), els.phase),
       h('div', { class: 'play-right' },
+        els.roleBtn,
         els.clock,
         document.fullscreenEnabled ? h('button', { class: 'icon-btn small', 'aria-label': t('fullscreen'), onclick: toggleFullscreen }, '⛶') : null),
     ),
@@ -466,6 +470,59 @@ async function startGame(game, setup) {
       ),
     ));
   }
+}
+
+/**
+ * Let one player look at their role again: pick the seat, hand the phone over,
+ * then hold a button to see the card (it hides as soon as they let go).
+ * The narration pauses while this is open.
+ */
+function openRoleRecall(r, cards) {
+  const wasPaused = r.paused;
+  if (!wasPaused) r.pause();
+  const dlg = h('dialog', { class: 'dialog recall' });
+  dlg.addEventListener('close', () => { dlg.remove(); if (!wasPaused) r.resume(); });
+  const head = () => h('div', { class: 'dialog-head' },
+    h('h2', {}, '🪪 ', t('recallTitle')),
+    h('button', { class: 'icon-btn', 'aria-label': t('close'), onclick: () => dlg.close() }, '✕'));
+
+  const pick = () => dlg.replaceChildren(h('div', { class: 'dialog-body' },
+    head(),
+    h('p', { class: 'muted' }, t('recallPick')),
+    h('div', { class: 'grid' }, cards.map((c) => h('button', { class: 'cell', onclick: () => pass(c) },
+      h('span', { class: 'cell-main' }, String(c.seat)),
+      playerNameOf(c.seat) ? h('span', { class: 'cell-name' }, playerNameOf(c.seat)) : null))),
+  ));
+
+  const pass = (card) => {
+    const who = seatLabel(card.seat);
+    const slot = h('div', { class: 'recall-slot' }, h('div', { class: 'flip-card' }, h('div', { class: 'flip-back' }, h('span', {}, '?'))));
+    const show = () => { slot.replaceChildren(renderRoleCard(card)); };
+    const hide = () => { slot.replaceChildren(h('div', { class: 'flip-card' }, h('div', { class: 'flip-back' }, h('span', {}, '?')))); };
+    dlg.replaceChildren(h('div', { class: 'dialog-body recall-body' },
+      head(),
+      h('div', { class: 'deal-pass' }, t('passTo')),
+      h('div', { class: 'deal-seat' }, who),
+      h('div', { class: 'muted small' }, t('recallHint')),
+      slot,
+      h('button', {
+        type: 'button', class: 'btn big primary hold',
+        oncontextmenu: (e) => e.preventDefault(),
+        // Capture the pointer so lifting the finger anywhere hides the card again.
+        onpointerdown: (e) => { e.preventDefault(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ } show(); },
+        onpointerup: hide, onpointercancel: hide, onlostpointercapture: hide,
+        onkeydown: (e) => { if (e.key === ' ' || e.key === 'Enter') show(); },
+        onkeyup: hide,
+      }, '👆 ', t('holdToSee')),
+      h('div', { class: 'btn-row' },
+        h('button', { type: 'button', class: 'btn', onclick: pick }, '← ', t('recallOther')),
+        h('button', { type: 'button', class: 'btn', onclick: () => dlg.close() }, '✓ ', t('recallDone'))),
+    ));
+  };
+
+  pick();
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 function toggleFullscreen() {
