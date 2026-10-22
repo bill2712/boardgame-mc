@@ -1,10 +1,10 @@
 import { h, fmtTime, pick } from './util.js';
 import { settings, saveSettings, loadSetup, saveSetup, markPlayed, toggleFavorite } from './settings.js';
-import { t, L, UI_LANGS } from './i18n.js';
+import { t, L, N, UI_LANGS } from './i18n.js';
 import { GAMES, gameById, makeSetup, restoreSetup } from './games/index.js';
 import { CATEGORIES } from './content.js';
 import { Runner } from './runner.js';
-import { supported as ttsSupported, voicesFor, currentVoice, onVoices, speak, cancel, unlock } from './speech.js';
+import { supported as ttsSupported, voicesFor, currentVoice, onVoices, cancel, unlockWith, onStatus, status as ttsStatus, resetVoiceMemory } from './speech.js';
 import { unlockAudio } from './sound.js';
 import { confetti, sky } from './fx.js';
 
@@ -12,6 +12,15 @@ const app = document.getElementById('app');
 let runner = null;
 let wakeLock = null;
 let clockTimer = null;
+let offStatus = null;
+
+/** Plain-language reason why speech isn't working. */
+function voiceProblemText(st) {
+  if (st.state === 'unsupported') return t('voiceUnsupported');
+  if (st.state === 'blocked') return t('voiceBlocked');
+  if (st.state === 'silent') return t('voiceSilent');
+  return `${t('voiceFailed')} (${st.error})`;
+}
 const ui = { query: '', cat: 'all', players: 0 };
 
 // Language from ?lang=… or from the /en/ and /zh-hans/ landing pages (<html data-lang>).
@@ -337,9 +346,11 @@ function toggle(on, onChange) {
 // ---------- play ----------
 async function startGame(game, setup) {
   stopGame();
+  // Must run synchronously inside the tap: a real spoken line unlocks speech for the session.
+  resetVoiceMemory();
+  unlockWith(N(game.name));
   saveSetup(game.id, setup);
   markPlayed(game.id);
-  unlock();
   unlockAudio();
   requestWakeLock();
 
@@ -351,6 +362,7 @@ async function startGame(game, setup) {
     countdown: h('div', { class: 'countdown hidden' }),
     stage: h('div', { class: 'stage' }),
     pausedBadge: h('div', { class: 'paused-badge hidden' }, '⏸ ', t('paused')),
+    voiceBanner: h('div', { class: 'voice-banner hidden', role: 'alert' }),
   };
   const view = {
     caption(text) {
@@ -384,6 +396,20 @@ async function startGame(game, setup) {
 
   runner = new Runner(view);
   const r = runner;
+  const paintVoice = (st) => {
+    const bad = ['failed', 'blocked', 'silent', 'unsupported'].includes(st.state);
+    els.voiceBanner.classList.toggle('hidden', !bad);
+    if (!bad) return;
+    els.voiceBanner.replaceChildren(
+      h('div', { class: 'vb-text' }, '🔇 ', voiceProblemText(st)),
+      h('div', { class: 'vb-actions' },
+        st.state !== 'unsupported' ? h('button', { class: 'btn small', onclick: () => { resetVoiceMemory(); unlockWith(r.lastLine || N(game.name)); } }, '🔊 ', t('voiceRetry')) : null,
+        h('button', { class: 'btn small', onclick: openSettings }, '⚙ ', t('settings'))),
+    );
+  };
+  offStatus?.();
+  offStatus = onStatus(paintVoice);
+  paintVoice(ttsStatus);
   const pauseBtn = h('button', { class: 'ctl main', onclick: () => r.togglePause() }, h('span', { class: 'ctl-ico' }, '⏸'), h('span', {}, t('pause')));
   document.body.classList.add('playing', 'day');
 
@@ -396,6 +422,7 @@ async function startGame(game, setup) {
         document.fullscreenEnabled ? h('button', { class: 'icon-btn small', 'aria-label': t('fullscreen'), onclick: toggleFullscreen }, '⛶') : null),
     ),
     els.board,
+    els.voiceBanner,
     h('div', { class: 'play-main' }, els.pausedBadge, h('div', { class: 'caption-card' }, els.caption), els.countdown),
     els.stage,
     h('footer', { class: 'controls' },
@@ -447,6 +474,8 @@ function toggleFullscreen() {
 }
 
 function stopGame() {
+  offStatus?.();
+  offStatus = null;
   if (runner) { runner.abort(); runner = null; }
   clearInterval(clockTimer);
   document.body.classList.remove('night', 'day', 'playing');
@@ -469,6 +498,10 @@ document.addEventListener('visibilitychange', () => {
 function openSettings() {
   const dlg = h('dialog', { class: 'dialog' });
   const voiceInfo = h('div', { class: 'msg warn hidden' });
+  const testResult = h('div', { class: 'test-result muted small', 'aria-live': 'polite' });
+  const describeVoice = () => (ttsStatus.state === 'ok'
+    ? `✅ ${t('voiceOk')} ${ttsStatus.voice || ttsStatus.lang || ''}`
+    : `🔇 ${voiceProblemText(ttsStatus)}`);
 
   const paint = () => {
     const vl = settings.voiceLang;
@@ -480,16 +513,21 @@ function openSettings() {
     dlg.replaceChildren(h('form', { method: 'dialog', class: 'dialog-body' },
       h('div', { class: 'dialog-head' }, h('h2', {}, '⚙ ', t('settings')), h('button', { class: 'icon-btn', value: 'close', 'aria-label': t('close') }, '✕')),
       field(t('uiLang'), seg(UI_LANGS.map((l) => [l.id, l.label]), settings.uiLang, (v) => { dlg.close(); switchLang(v); })),
-      field(t('voiceLang'), h('select', { class: 'select', onchange: (e) => { settings.voiceLang = e.target.value; saveSettings(); paint(); } },
+      field(t('voiceLang'), h('select', { class: 'select', onchange: (e) => { settings.voiceLang = e.target.value; saveSettings(); resetVoiceMemory(); paint(); } },
         ['yue', 'cmn', 'en'].map((v) => h('option', { value: v, selected: v === vl }, t(v))))),
-      field(t('voice'), h('select', { class: 'select', disabled: !list.length, onchange: (e) => { settings.voices[vl] = e.target.value; saveSettings(); } },
+      field(t('voice'), h('select', { class: 'select', disabled: !list.length, onchange: (e) => { settings.voices[vl] = e.target.value; saveSettings(); resetVoiceMemory(); } },
         list.length ? list.map((v) => h('option', { value: v.voiceURI, selected: cur && v.voiceURI === cur.voiceURI }, `${v.name} (${v.lang})`))
           : h('option', {}, t('voiceDefault')))),
       voiceInfo,
       h('button', { type: 'button', class: 'btn big primary', onclick: () => {
-        unlock(); cancel();
-        speak(settings.voiceLang === 'en' ? 'Everyone, close your eyes. Welcome to Board Game MC!' : '天黑請閉眼。歡迎使用桌遊主持人！');
+        cancel();
+        resetVoiceMemory();
+        testResult.textContent = t('voiceTesting');
+        unlockWith(settings.voiceLang === 'en' ? 'Everyone, close your eyes. Welcome to Board Game MC!' : '天黑請閉眼。歡迎使用桌遊主持人！')
+          .then(() => { testResult.textContent = describeVoice(); });
+        setTimeout(() => { if (ttsStatus.state !== 'idle') testResult.textContent = describeVoice(); }, 3000);
       } }, '🔊 ', t('testVoice')),
+      testResult,
       field(`${t('rate')} · ${settings.rate.toFixed(1)}×`, h('input', { type: 'range', min: 0.6, max: 1.5, step: 0.1, value: settings.rate,
         oninput: (e) => { settings.rate = +e.target.value; saveSettings(); e.target.closest('.field').querySelector('.field-label').textContent = `${t('rate')} · ${settings.rate.toFixed(1)}×`; } })),
       field(t('volume'), h('input', { type: 'range', min: 0, max: 1, step: 0.1, value: settings.volume, oninput: (e) => { settings.volume = +e.target.value; saveSettings(); } })),

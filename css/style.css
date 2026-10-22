@@ -340,6 +340,10 @@ body.night .sun { opacity: 0; transform: translateY(120px); }
 .caption { font-size: clamp(23px, 5.8vw, 34px); font-weight: 800; line-height: 1.4; max-width: 660px; letter-spacing: -.01em; }
 .caption.pop { animation: pop .45s cubic-bezier(.2, .8, .2, 1); }
 @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.98); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.voice-banner { margin: 4px 0 6px; padding: 10px 12px; border-radius: 16px; background: var(--neutral-soft); color: var(--text); border: 1px solid color-mix(in srgb, var(--neutral) 50%, transparent); display: flex; flex-direction: column; gap: 8px; text-shadow: none; }
+.voice-banner .vb-text { font-weight: 600; font-size: 14px; }
+.voice-banner .vb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.test-result { min-height: 1.4em; text-align: center; }
 .paused-badge { background: var(--neutral); color: #2b1d00; padding: 5px 16px; border-radius: 999px; font-weight: 800; text-shadow: none; animation: pulse 1.4s infinite; }
 .countdown { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .cd-ring { --p: 1; width: 96px; height: 96px; border-radius: 50%; background: conic-gradient(var(--gold) calc(var(--p) * 360deg), rgba(255, 255, 255, .15) 0); display: grid; place-items: center; box-shadow: 0 0 40px rgba(255, 207, 92, .25); }
