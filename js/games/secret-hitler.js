@@ -12,7 +12,7 @@ export function powers(n) {
 const POWER_TEXT = {
   peek: tx('總統權力：秘密查看法案牌堆頂的三張法案。', 'Presidential power: secretly look at the top three policy cards.'),
   investigate: tx('總統權力：調查一位玩家的黨派。', "Presidential power: investigate one player's party membership."),
-  special: tx('總統權力：指定下一任總統候選人。', 'Presidential power: choose the next presidential candidate.'),
+  special: tx('總統權力：指定下一任總統候選人。特別選舉之後，總統職位會回到原本順序的下一位。', 'Presidential power: choose the next presidential candidate. After that special election, the presidency returns to the normal order.'),
   kill: tx('總統權力：處決一位玩家。', 'Presidential power: execute a player.'),
 };
 const POWER_ICON = { peek: '👁️', investigate: '🔍', special: '🎖️', kill: '💀' };
@@ -232,8 +232,10 @@ async function tracker(ctx, s) {
       await ctx.say(tx('議程被否決，選舉失敗次數加一。', 'The agenda is vetoed. The election tracker advances.'));
       if (fails >= 3 && await chaos() === 'over') return;
     } else {
+      const powerBefore = pw[fas];
       if (await enact(policy, false) === 'over') return;
       await drew(3);
+      if (policy === 'F' && powerBefore === 'special') continue; // the President picks the next candidate
     }
     await ctx.say(tx('總統候選人傳給左手邊的玩家。', 'The presidency passes to the left.'));
   }

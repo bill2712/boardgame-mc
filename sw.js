@@ -1,5 +1,5 @@
 // Offline support: network first, cache as fallback, so updates show up right away.
-const CACHE = 'bgmc-v3';
+const CACHE = 'bgmc-v4';
 const FILES = [
   './',
   'index.html',
@@ -52,8 +52,10 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
         return res;
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match('./'))),

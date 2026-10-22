@@ -149,9 +149,11 @@ export default {
       runner.abortPromise.catch(() => clearInterval(tick));
 
       const holdKey = h('button', {
-        class: 'btn',
+        class: 'btn cn-hold',
+        oncontextmenu: (e) => e.preventDefault(),
         onpointerdown: () => { peek = true; paint(); },
         onpointerup: () => { peek = false; paint(); },
+        onpointercancel: () => { peek = false; paint(); },
         onpointerleave: () => { if (peek && digital) { peek = false; paint(); } },
       }, ctx.L(tx('🔑 隊長按住看鑰匙卡', '🔑 Spymasters: hold to view key')));
 

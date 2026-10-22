@@ -1,7 +1,7 @@
 import { h, fmtTime, pick } from './util.js';
 import { settings, saveSettings, loadSetup, saveSetup, markPlayed, toggleFavorite } from './settings.js';
 import { t, L, UI_LANGS } from './i18n.js';
-import { GAMES, gameById, makeSetup } from './games/index.js';
+import { GAMES, gameById, makeSetup, restoreSetup } from './games/index.js';
 import { CATEGORIES } from './content.js';
 import { Runner } from './runner.js';
 import { supported as ttsSupported, voicesFor, currentVoice, onVoices, speak, cancel, unlock } from './speech.js';
@@ -31,6 +31,9 @@ function guideHref(id) {
   const prefix = settings.uiLang === 'en' ? 'en/' : settings.uiLang === 'zhs' ? 'zh-hans/' : '';
   return `${prefix}games/${id}/`;
 }
+
+/** Link to an in-app screen on the current page (ignores <base href>). */
+const hashHref = (hash) => `${location.pathname}${location.search}${hash}`;
 
 const rulesOf = (game) => (settings.uiLang === 'en' ? game.rules.en : game.rules.zh.map((r) => L({ zh: r })));
 
@@ -73,7 +76,7 @@ function header({ back } = {}) {
   return h('header', { class: 'topbar' },
     back
       ? h('button', { class: 'icon-btn', 'aria-label': t('back'), onclick: () => { location.hash = '#/'; } }, '←')
-      : h('a', { class: 'brand', href: '#/' }, h('img', { src: 'icons/icon.svg', alt: '', width: 30, height: 30 }), h('span', {}, t('appTitle'))),
+      : h('a', { class: 'brand', href: hashHref('#/') }, h('img', { src: 'icons/icon.svg', alt: '', width: 30, height: 30 }), h('span', {}, t('appTitle'))),
     h('div', { class: 'topbar-actions' },
       langMenu(),
       h('button', { class: 'icon-btn', 'aria-label': t('share'), title: t('share'), onclick: share }, '↗'),
@@ -111,17 +114,21 @@ function gameCard(g) {
       renderHome(true);
     },
   }, fav ? '♥' : '♡');
-  return h('a', { class: 'game-card', href: `#/game/${g.id}`, style: { '--c1': g.colors[0], '--c2': g.colors[1] } },
-    h('div', { class: 'gc-art' }, h('span', { class: 'gc-emoji' }, g.emoji), favBtn),
-    h('div', { class: 'gc-body' },
-      h('div', { class: 'gc-name' }, L(g.name)),
-      h('div', { class: 'gc-tag' }, L(g.tagline)),
-      h('div', { class: 'gc-meta' },
-        h('span', {}, `👥 ${g.players.min}–${g.players.max}`),
-        g.time !== '—' ? h('span', {}, `⏳ ${g.time}′`) : null,
-        h('span', { class: 'gc-cat' }, L(CATEGORIES[g.category])),
+  // The ♥ button sits next to the link, not inside it (a button inside a link is invalid HTML).
+  return h('div', { class: 'gc-wrap', style: { '--c1': g.colors[0], '--c2': g.colors[1] } },
+    h('a', { class: 'game-card', href: hashHref(`#/game/${g.id}`) },
+      h('div', { class: 'gc-art' }, h('span', { class: 'gc-emoji' }, g.emoji)),
+      h('div', { class: 'gc-body' },
+        h('div', { class: 'gc-name' }, L(g.name)),
+        h('div', { class: 'gc-tag' }, L(g.tagline)),
+        h('div', { class: 'gc-meta' },
+          h('span', {}, `👥 ${g.players.min}–${g.players.max}`),
+          g.time !== '—' ? h('span', {}, `⏳ ${g.time}′`) : null,
+          h('span', { class: 'gc-cat' }, L(CATEGORIES[g.category])),
+        ),
       ),
     ),
+    favBtn,
   );
 }
 
@@ -161,7 +168,7 @@ function renderHome(keepScroll) {
 
   const recent = (settings.recent || []).map(gameById).filter(Boolean);
   const favs = (settings.favorites || []).map(gameById).filter(Boolean);
-  const mini = (g) => h('a', { class: 'mini', href: `#/game/${g.id}`, style: { '--c1': g.colors[0], '--c2': g.colors[1] } },
+  const mini = (g) => h('a', { class: 'mini', href: hashHref(`#/game/${g.id}`), style: { '--c1': g.colors[0], '--c2': g.colors[1] } },
     h('span', { class: 'mini-emoji' }, g.emoji), h('span', {}, L(g.name)));
 
   const orbit = ['🎲', '🃏', '🌙', '🐺', '🧀', '🙊', '🏰', '⏱️'];
@@ -208,10 +215,7 @@ function renderHome(keepScroll) {
 
 // ---------- setup ----------
 function renderSetup(game) {
-  const saved = loadSetup(game.id);
-  let setup = saved && saved.n >= game.players.min && saved.n <= game.players.max
-    ? { ...makeSetup(game, saved.n, saved.opts), roles: { ...game.defaults(saved.n).roles, ...saved.roles } }
-    : makeSetup(game, game.players.default);
+  let setup = restoreSetup(game, loadSetup(game.id));
 
   const body = h('div', { class: 'setup-body' });
   const startBtn = h('button', { class: 'btn big primary start', onclick: () => startGame(game, setup) }, '▶ ', t('start'));
@@ -332,6 +336,7 @@ function toggle(on, onChange) {
 
 // ---------- play ----------
 async function startGame(game, setup) {
+  stopGame();
   saveSetup(game.id, setup);
   markPlayed(game.id);
   unlock();
@@ -496,8 +501,8 @@ function openSettings() {
     ));
   };
   paint();
-  onVoices(() => { if (dlg.open) paint(); });
-  dlg.addEventListener('close', () => dlg.remove());
+  const offVoices = onVoices(() => { if (dlg.open) paint(); });
+  dlg.addEventListener('close', () => { offVoices(); dlg.remove(); });
   document.body.append(dlg);
   dlg.showModal();
 }

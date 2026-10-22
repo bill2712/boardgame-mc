@@ -27,7 +27,7 @@ if (synth) {
 }
 
 export const supported = () => !!synth;
-export const onVoices = (fn) => listeners.add(fn);
+export const onVoices = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 
 const norm = (l) => (l || '').toLowerCase().replace(/_/g, '-');
 
@@ -58,6 +58,7 @@ function estimateSeconds(text) {
 }
 
 let current = null;
+let lastCancel = 0;
 
 export function speak(text) {
   return new Promise((resolve) => {
@@ -87,14 +88,19 @@ export function speak(text) {
     u.onerror = finish;
     const safety = setTimeout(finish, (est * 2 + 4) * 1000);
     current = u;
-    // Chrome sometimes stays paused after a cancel; resume first.
-    try { synth.resume(); } catch { /* ignore */ }
-    synth.speak(u);
+    // Some Chrome builds drop an utterance queued right after cancel(); wait a moment.
+    const delay = Date.now() - lastCancel < 150 ? 150 : 0;
+    setTimeout(() => {
+      if (done) return; // cancelled before it started
+      try { synth.resume(); } catch { /* ignore */ }
+      synth.speak(u);
+    }, delay);
   });
 }
 
 export function cancel() {
   if (!synth) return;
+  lastCancel = Date.now();
   try { synth.cancel(); } catch { /* ignore */ }
   if (current) {
     const u = current;

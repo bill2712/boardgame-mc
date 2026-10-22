@@ -27,6 +27,13 @@ const write = (rel, content) => {
 const T = (lang, zh, en) => (lang === 'en' ? en : lang === 'zhs' ? toHans(zh) : zh);
 const lines = (lang, arr) => (lang === 'en' ? arr.en : arr.zh.map((x) => (lang === 'zhs' ? toHans(x) : x)));
 const playable = GAMES.filter((g) => g.category !== 'tool');
+/** Cut a description at a sentence or word boundary. */
+const clip = (s, max) => {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const at = Math.max(cut.lastIndexOf('。'), cut.lastIndexOf('. '), cut.lastIndexOf('！'), cut.lastIndexOf('! '));
+  return (at > max * 0.4 ? cut.slice(0, at + 1) : `${cut.replace(/\s+\S*$/, '')}…`).trim();
+};
 
 function head({ lang, title, desc, path, image, alternates, jsonld, base }) {
   const L = LANGS.find((l) => l.id === lang);
@@ -142,7 +149,12 @@ function guidePage(game, lang) {
     ? T(lang, `${name}｜免費桌遊發言計時器 · 桌遊主持人`, `${name} | Free board game speaking timer · Board Game MC`)
     : T(lang, `${name}主持人＋計時器｜玩法規則、角色、人數配置教學`, `${name} moderator & timer | Rules, roles and setup guide`);
   const rules = lines(lang, game.rules);
-  const desc = `${inLang(game.tagline, lang)}${lang === 'en' ? '. ' : '。'}${rules[0]}`.slice(0, 160);
+  const suffix = isTool
+    ? T(lang, '免費桌遊計時器，附語音提醒。', ' Free timer with voice reminders.')
+    : T(lang, `免費${name}語音主持＋計時器。`, ` Free ${name} voice moderator and timer.`);
+  const desc = clip(lang === 'en'
+    ? `${inLang(game.tagline, lang)}.${suffix} ${rules[0]}`
+    : `${inLang(game.tagline, lang)}。${suffix}${rules[0]}`, lang === 'en' ? 160 : 90);
   const aka = (game.aka || []).filter((a) => a !== name);
   const alternates = [...LANGS.map((l) => ({ hreflang: l.html, path: `${l.prefix}games/${game.id}/` })), { hreflang: 'x-default', path: `games/${game.id}/` }];
   const faq = game.faq.map((f) => ({ q: inLang(f.q, lang), a: inLang(f.a, lang) }));
