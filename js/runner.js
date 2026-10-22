@@ -3,7 +3,7 @@
 // ctx.say(), ctx.act(), ctx.timer(), ctx.choose(), ctx.buttons(), ctx.deal() ...
 // The runner handles pause / skip / repeat / exit for all of them.
 
-import { speak, cancel as cancelSpeech } from './speech.js';
+import { speak as ttsSpeak, cancel as ttsCancel } from './speech.js';
 import { settings } from './settings.js';
 import { L, N, t } from './i18n.js';
 import { h, tx, fmtTime, sleep, shuffle, pick, randInt, range, spokenDuration, joinNames } from './util.js';
@@ -12,28 +12,47 @@ import { sfx } from './sound.js';
 export const ABORT = Symbol('abort');
 
 export class Runner {
-  constructor(view) {
+  /** speech: { speak(text) → Promise, cancel() } — swappable for tests. */
+  constructor(view, speech = { speak: ttsSpeak, cancel: ttsCancel }) {
     this.view = view;
+    this.speech = speech;
     this.paused = false;
     this.aborted = false;
-    this.kickers = new Set();
+    this.kickers = new Set(); // resolvers of whoever is currently listening for a button
+    this.lastKick = null;     // reason of the most recent kick (pause / skip / repeat …)
     this.lastLine = '';
     this.abortPromise = new Promise((_, rej) => { this.rejectAbort = rej; });
     this.abortPromise.catch(() => {});
   }
 
+  speak(text) { return this.speech.speak(text); }
+  cancelSpeech() { this.speech.cancel(); }
+
   // ---- control (called by the UI buttons) ----
   kick(reason) {
+    this.lastKick = reason;
     const ks = [...this.kickers];
     this.kickers.clear();
     ks.forEach((k) => k(reason));
   }
-  waitKick() { return new Promise((r) => this.kickers.add(r)); }
+
+  /** Race a promise against the next kick. Always removes its listener afterwards. */
+  async raceKick(promise) {
+    let resolve;
+    const kicked = new Promise((r) => { resolve = r; });
+    this.kickers.add(resolve);
+    try {
+      return await Promise.race([promise, kicked]);
+    } finally {
+      this.kickers.delete(resolve);
+    }
+  }
 
   pause() {
     if (this.paused || this.aborted) return;
     this.paused = true;
-    cancelSpeech();
+    this.pausedAt = performance.now();
+    this.cancelSpeech();
     this.view.onPause(true);
     this.kick('pause');
   }
@@ -44,19 +63,31 @@ export class Runner {
     this.kick('resume');
   }
   togglePause() { this.paused ? this.resume() : this.pause(); }
-  skip() { if (this.paused) return; cancelSpeech(); this.kick('skip'); }
-  repeat() { if (this.paused) return; cancelSpeech(); this.kick('repeat'); }
+  skip() { if (this.paused || this.aborted) return; this.cancelSpeech(); this.kick('skip'); }
+  repeat() {
+    if (this.paused || this.aborted) return;
+    this.cancelSpeech();
+    // Inside say / wait / timer the loop re-speaks; on a button screen nobody listens, so speak here.
+    if (this.kickers.size) this.kick('repeat');
+    else if (this.lastLine) this.speak(this.lastLine);
+  }
   abort() {
     this.aborted = true;
-    cancelSpeech();
+    this.cancelSpeech();
     this.rejectAbort(ABORT);
     this.kick('abort');
+  }
+
+  /** Running time since `start`, not counting time after a pause began. */
+  elapsedSince(start) {
+    const end = this.paused ? this.pausedAt : performance.now();
+    return Math.max(0, end - start);
   }
 
   async gate() {
     if (this.aborted) throw ABORT;
     while (this.paused) {
-      await this.waitKick();
+      await this.raceKick(this.abortPromise.catch(() => {}));
       if (this.aborted) throw ABORT;
     }
   }
@@ -70,7 +101,7 @@ export class Runner {
       if (e === ABORT) return false;
       throw e;
     } finally {
-      cancelSpeech();
+      this.cancelSpeech();
     }
   }
 
@@ -83,10 +114,13 @@ export class Runner {
     this.lastLine = spoken;
     this.view.caption(L(text), opts);
     for (;;) {
-      const r = await Promise.race([speak(spoken), this.waitKick()]);
+      this.lastKick = null;
+      const r = await this.raceKick(this.speak(spoken));
+      // Pause / repeat cancel the speech first, which also settles speak(); lastKick says why.
+      const why = this.lastKick ?? r;
       if (this.aborted) throw ABORT;
-      if (r === 'pause') { await this.gate(); continue; }
-      if (r === 'repeat') continue;
+      if (why === 'pause') { await this.gate(); continue; } // say the interrupted line again
+      if (why === 'repeat') continue;
       break;
     }
     await this.wait(opts.after ?? 0.6, { silent: true });
@@ -100,11 +134,11 @@ export class Runner {
     while (remaining > 0) {
       await this.gate();
       const start = performance.now();
-      const r = await Promise.race([sleep(Math.min(200, remaining)), this.waitKick()]);
+      const r = await this.raceKick(sleep(Math.min(200, remaining)));
       if (this.aborted) throw ABORT;
-      remaining -= performance.now() - start;
+      remaining -= this.elapsedSince(start);
       if (r === 'skip') break;
-      if (r === 'repeat' && this.lastLine) speak(this.lastLine);
+      if (r === 'repeat' && this.lastLine) this.speak(this.lastLine);
       if (show) this.view.countdown(Math.max(0, remaining) / 1000, sec, opts.label);
     }
     if (show) this.view.countdown(null);
@@ -148,19 +182,20 @@ export class Runner {
     let reason = 'end';
     while (remaining > 0) {
       await this.gate();
+      if (custom) { reason = custom; break; } // tapped while paused
       const start = performance.now();
-      const r = await Promise.race([sleep(Math.min(250, remaining)), this.waitKick()]);
+      const r = await this.raceKick(sleep(Math.min(250, remaining)));
       if (this.aborted) throw ABORT;
-      remaining -= performance.now() - start;
+      remaining -= this.elapsedSince(start);
       if (r === 'skip') { reason = 'skip'; break; }
       if (r === 'custom') { reason = custom; break; }
-      if (r === 'repeat' && this.lastLine) speak(this.lastLine);
+      if (r === 'repeat' && this.lastLine) this.speak(this.lastLine);
       const secLeft = Math.ceil(remaining / 1000);
       for (const w of warnings) {
         if (secLeft <= w && secLeft > w - 3 && !said.has(w)) {
           said.add(w);
           sfx('warn');
-          speak(N(warnLine(w)));
+          this.speak(N(warnLine(w)));
         }
       }
       if (secLeft <= 5 && secLeft > 0 && secLeft !== lastTick) { lastTick = secLeft; sfx('tick'); }

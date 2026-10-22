@@ -185,3 +185,18 @@ test('simplified Chinese conversion', async () => {
   assert.equal(toHans('請關閉靜音模式'), '请关闭静音模式');
   assert.equal(toHans('搜尋遊戲'), '搜寻游戏');
 });
+
+test('restoreSetup drops stale or broken saved values', async () => {
+  const { restoreSetup, gameById } = await import('../js/games/index.js');
+  const ww = gameById('werewolf');
+  const s = restoreSetup(ww, { n: 9, roles: { wolf: 99, seer: 0, hunter: 'x' }, opts: { win: 'gone', speak: 9999, reveal: 'yes' } });
+  assert.equal(s.n, 9);
+  assert.equal(s.roles.wolf, ww.defaults(9).roles.wolf, 'out-of-range role count ignored');
+  assert.equal(s.roles.seer, 0, 'valid saved choice kept');
+  assert.equal(s.opts.win, 'side', 'unknown select value falls back to default');
+  assert.equal(s.opts.speak, 60, 'out-of-range number falls back to default');
+  assert.equal(s.opts.reveal, false, 'non-boolean toggle falls back to default');
+  assert.equal(restoreSetup(ww, { n: 99 }).n, ww.players.default, 'bad player count');
+  assert.equal(restoreSetup(ww, null).n, ww.players.default);
+  assert.deepEqual(ww.check(restoreSetup(ww, { n: 6, roles: { wolf: 5 } })).errors, []);
+});
