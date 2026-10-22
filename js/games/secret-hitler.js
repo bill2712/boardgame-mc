@@ -19,7 +19,7 @@ const POWER_ICON = { peek: '👁️', investigate: '🔍', special: '🎖️', k
 
 const R = {
   liberal: { name: tx('自由黨', 'Liberal'), team: 'good', emoji: '🕊️', desc: tx('通過 5 張自由黨法案，或者處決希特勒。', 'Enact 5 Liberal policies or execute Hitler.') },
-  fascist: { name: tx('法西斯黨', 'Fascist'), team: 'evil', emoji: '🦅', desc: tx('通過 6 張法西斯法案，或者喺 3 張法西斯法案後令希特勒當選總理。', 'Enact 6 Fascist policies, or get Hitler elected Chancellor after 3 Fascist policies.') },
+  fascist: { name: tx('法西斯黨', 'Fascist'), team: 'evil', emoji: '🦅', desc: tx('通過 6 張法西斯法案，或者在 3 張法西斯法案後令希特勒當選總理。', 'Enact 6 Fascist policies, or get Hitler elected Chancellor after 3 Fascist policies.') },
   hitler: { name: tx('希特勒', 'Hitler'), team: 'evil', emoji: '💀', desc: tx('屬於法西斯陣營。隱藏身份，爭取當選總理。', 'On the Fascist team. Stay hidden and get elected Chancellor.') },
 };
 
@@ -32,11 +32,11 @@ export default {
   time: '45',
   rules: {
     zh: [
-      '自由黨：通過 5 張自由黨法案，或者處決希特勒就贏。',
-      '法西斯：通過 6 張法西斯法案，或者喺 3 張法西斯法案之後選希特勒做總理就贏。',
-      '每輪總統提名總理，全員投票；通過後總統抽 3 張法案棄 1，總理再棄 1 頒布 1 張。',
+      '自由黨：通過 5 張自由黨法案，或者處決希特勒即獲勝。',
+      '法西斯：通過 6 張法西斯法案，或者在 3 張法西斯法案之後選出希特勒當總理即獲勝。',
+      '每輪總統提名總理，全員投票；通過後總統抽 3 張法案棄 1 張，總理再棄 1 張並頒布 1 張。',
       '連續 3 次選舉失敗，直接頒布牌堆頂的法案。',
-      '本 App 會讀出夜晚流程，並記錄法案、選舉失敗次數同總統權力。',
+      '本 App 會讀出夜晚流程，並記錄法案、選舉失敗次數和總統權力。',
     ],
     en: [
       'Liberals win by enacting 5 Liberal policies or executing Hitler.',
@@ -55,7 +55,7 @@ export default {
     { id: 'tracker', type: 'toggle', label: tx('法案記錄板（選舉、法案、權力）', 'Policy tracker (elections, policies, powers)'), default: true },
     { id: 'talk', type: 'number', label: tx('每輪討論時間（0 = 不計時）', 'Discussion timer per round (0 = off)'), min: 0, max: 10, step: 1, unit: 'min', default: 0 },
     { id: 'nightSec', type: 'number', label: tx('夜晚確認時間', 'Night reveal time'), min: 3, max: 15, step: 1, unit: 'sec', default: 6 },
-    { id: 'deal', type: 'toggle', label: tx('電子派牌（冇實體卡都玩得）', 'Deal roles on this phone (no cards needed)'), default: false },
+    { id: 'deal', type: 'toggle', label: tx('電子派牌（沒有實體卡也能玩）', 'Deal roles on this phone (no cards needed)'), default: false },
   ],
   defaults() { return { roles: { hitler: 1 } }; },
   deck(s) {
@@ -102,7 +102,7 @@ export default {
     await ctx.say(tx('所有人請睜開眼睛。', 'Everyone, open your eyes.'));
 
     if (!s.opts.tracker) {
-      await ctx.say(tx('夜晚結束，請隨機揀一位玩家做第一任總統候選人。祝大家遊戲愉快！', 'The night is over. Choose a random first presidential candidate. Have a good game!'));
+      await ctx.say(tx('夜晚結束，請隨機選一位玩家擔任第一任總統候選人。祝大家遊戲愉快！', 'The night is over. Choose a random first presidential candidate. Have a good game!'));
       return;
     }
     await tracker(ctx, s);
@@ -131,7 +131,7 @@ async function tracker(ctx, s) {
     deckLeft -= count;
     if (deckLeft < 3) {
       deckLeft = 17 - lib - fas;
-      await ctx.say(tx('牌堆少過三張，請將棄牌堆同牌堆一齊洗勻。', 'Fewer than three cards left. Shuffle the discard pile into the deck.'));
+      await ctx.say(tx('牌堆少於三張，請將棄牌堆和牌堆一起洗勻。', 'Fewer than three cards left. Shuffle the discard pile into the deck.'));
     }
   };
 
@@ -143,8 +143,8 @@ async function tracker(ctx, s) {
       : tx(`頒布法西斯法案。自由黨 ${lib} 張，法西斯 ${fas} 張。`, `A Fascist policy is enacted. Liberal ${lib}, Fascist ${fas}.`));
     if (lib >= 5) { await ctx.say(tx('五張自由黨法案，自由黨勝利！', 'Five Liberal policies. The Liberals win!')); return 'over'; }
     if (fas >= 6) { await ctx.say(tx('六張法西斯法案，法西斯勝利！', 'Six Fascist policies. The Fascists win!')); return 'over'; }
-    if (policy === 'F' && fas === 3) await ctx.say(tx('注意：由而家開始，如果希特勒當選總理，法西斯即刻勝利。', 'Warning: from now on, if Hitler is elected Chancellor, the Fascists win.'));
-    if (policy === 'F' && fas === 5) await ctx.say(tx('否決權已解鎖：總理同總統都同意，可以棄掉兩張法案。', 'Veto power unlocked: if the Chancellor and President agree, both policies can be discarded.'));
+    if (policy === 'F' && fas === 3) await ctx.say(tx('注意：從現在開始，如果希特勒當選總理，法西斯即時勝利。', 'Warning: from now on, if Hitler is elected Chancellor, the Fascists win.'));
+    if (policy === 'F' && fas === 5) await ctx.say(tx('否決權已解鎖：總理和總統都同意的話，可以棄掉兩張法案。', 'Veto power unlocked: if the Chancellor and President agree, both policies can be discarded.'));
     const power = policy === 'F' && !chaos ? pw[fas - 1] : null;
     if (power) {
       await ctx.say(POWER_TEXT[power]);
@@ -152,12 +152,12 @@ async function tracker(ctx, s) {
         const r = await ctx.buttons({
           title: tx('被處決的是希特勒嗎？', 'Was Hitler executed?'),
           buttons: [
-            { id: 'no', label: tx('唔係希特勒，繼續', 'Not Hitler, continue') },
-            { id: 'yes', label: tx('💀 係希特勒！', '💀 It was Hitler!'), style: 'good' },
+            { id: 'no', label: tx('不是希特勒，繼續', 'Not Hitler, continue') },
+            { id: 'yes', label: tx('💀 是希特勒！', '💀 It was Hitler!'), style: 'good' },
           ],
         });
         if (r === 'yes') { await ctx.say(tx('希特勒被處決，自由黨勝利！', 'Hitler has been executed. The Liberals win!')); return 'over'; }
-        await ctx.say(tx('被處決的玩家唔可以再說話或投票。', 'The executed player may no longer speak or vote.'));
+        await ctx.say(tx('被處決的玩家不可以再發言或投票。', 'The executed player may no longer speak or vote.'));
       } else {
         await ctx.ready(ctx.t('done'));
       }
@@ -180,7 +180,7 @@ async function tracker(ctx, s) {
   };
 
   paint();
-  await ctx.say(tx('請隨機揀一位玩家做第一任總統候選人。', 'Pick a random player as the first presidential candidate.'));
+  await ctx.say(tx('請隨機選一位玩家擔任第一任總統候選人。', 'Pick a random player as the first presidential candidate.'));
 
   for (;;) {
     round++;
@@ -210,8 +210,8 @@ async function tracker(ctx, s) {
       const r = await ctx.buttons({
         title: tx('新總理是希特勒嗎？', 'Is the new Chancellor Hitler?'),
         buttons: [
-          { id: 'no', label: tx('唔係，繼續', 'No, continue') },
-          { id: 'yes', label: tx('💀 係希特勒！', '💀 Yes, Hitler!'), style: 'evil' },
+          { id: 'no', label: tx('不是，繼續', 'No, continue') },
+          { id: 'yes', label: tx('💀 是希特勒！', '💀 Yes, Hitler!'), style: 'evil' },
         ],
       });
       if (r === 'yes') { await ctx.say(tx('希特勒當選總理，法西斯勝利！', 'Hitler has been elected Chancellor. The Fascists win!')); return; }

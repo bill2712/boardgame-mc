@@ -1,16 +1,22 @@
 {
   "name": "桌遊主持人 Board Game MC",
   "short_name": "桌遊MC",
-  "description": "Voice narrator and timer for social deduction board games",
+  "description": "Voice moderator and timer for party board games: Werewolf, Avalon, Cheese Thief, Spyfall, Codenames and more.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#141530",
-  "theme_color": "#1b1d3a",
+  "background_color": "#0a0b1e",
+  "theme_color": "#0a0b1e",
+  "categories": ["games", "entertainment", "utilities"],
   "icons": [
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [
+    { "name": "狼人殺 Werewolf", "url": "./#/game/werewolf" },
+    { "name": "阿瓦隆 Avalon", "url": "./#/game/avalon" },
+    { "name": "芝士大盜 Cheese Thief", "url": "./#/game/cheese-thief" }
   ]
 }

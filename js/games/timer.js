@@ -1,10 +1,10 @@
-import { tx } from '../util.js';
+import { tx, ucfirst } from '../util.js';
 
 export default {
   id: 'timer',
   emoji: '⏱️',
   name: tx('通用計時器', 'Table Timer'),
-  tagline: tx('任何桌遊都用得：自由討論或者輪流發言計時', 'For any game: free discussion or turn-by-turn speaking'),
+  tagline: tx('任何桌遊都適用：自由討論或輪流發言計時', 'For any game: free discussion or turn-by-turn speaking'),
   players: { min: 2, max: 20, default: 6 },
   time: '—',
   rules: {
@@ -40,8 +40,8 @@ export default {
     for (let r = 1; r <= s.opts.rounds; r++) {
       ctx.phase(tx(`第 ${r} 輪`, `Round ${r}`));
       for (let p = 1; p <= s.n; p++) {
-        await ctx.say(tx(`${p} 號玩家發言。`, `Player ${p}, your turn.`), { after: 0.2 });
-        await ctx.timer(s.opts.turnSec, { title: tx(`${p} 號發言`, `Player ${p}`), endLabel: tx('下一位', 'Next'), silentEnd: true, warnings: [10] });
+        await ctx.say(tx(`${ctx.seat(p).zh}發言。`, `${ucfirst(ctx.seat(p).en)}, your turn.`), { after: 0.2 });
+        await ctx.timer(s.opts.turnSec, { title: tx(`${ctx.seat(p).zh}發言`, `${ucfirst(ctx.seat(p).en)}`), endLabel: tx('下一位', 'Next'), silentEnd: true, warnings: [10] });
       }
     }
     await ctx.say(tx('所有人發言完畢。', 'Everyone has spoken.'));

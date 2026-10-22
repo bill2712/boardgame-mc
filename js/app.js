@@ -1,65 +1,209 @@
-import { h, fmtTime } from './util.js';
-import { settings, saveSettings, loadSetup, saveSetup } from './settings.js';
-import { t, L } from './i18n.js';
+import { h, fmtTime, pick } from './util.js';
+import { settings, saveSettings, loadSetup, saveSetup, markPlayed, toggleFavorite } from './settings.js';
+import { t, L, UI_LANGS } from './i18n.js';
 import { GAMES, gameById, makeSetup } from './games/index.js';
+import { CATEGORIES } from './content.js';
 import { Runner } from './runner.js';
 import { supported as ttsSupported, voicesFor, currentVoice, onVoices, speak, cancel, unlock } from './speech.js';
 import { unlockAudio } from './sound.js';
+import { confetti, sky } from './fx.js';
 
 const app = document.getElementById('app');
 let runner = null;
 let wakeLock = null;
 let clockTimer = null;
+const ui = { query: '', cat: 'all', players: 0 };
+
+// Language from ?lang=… or from the /en/ and /zh-hans/ landing pages (<html data-lang>).
+const forcedLang = new URLSearchParams(location.search).get('lang') || document.documentElement.dataset.lang;
+if (forcedLang && UI_LANGS.some((l) => l.id === forcedLang)) { settings.uiLang = forcedLang; saveSettings(); }
+
+// ---------- theme & language ----------
+function applyTheme() {
+  const root = document.documentElement;
+  if (settings.theme === 'auto') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', settings.theme);
+  root.lang = UI_LANGS.find((l) => l.id === settings.uiLang)?.html || 'en';
+}
+
+/** Relative link to a game's static guide page in the current language. */
+function guideHref(id) {
+  const prefix = settings.uiLang === 'en' ? 'en/' : settings.uiLang === 'zhs' ? 'zh-hans/' : '';
+  return `${prefix}games/${id}/`;
+}
+
+const rulesOf = (game) => (settings.uiLang === 'en' ? game.rules.en : game.rules.zh.map((r) => L({ zh: r })));
 
 // ---------- routing ----------
 function route() {
   stopGame();
+  applyTheme();
   const [, page, id] = location.hash.split('/');
-  document.documentElement.lang = settings.uiLang === 'zh' ? 'zh-Hant' : 'en';
+  if (page === 'game' && gameById(id)) {
+    const g = gameById(id);
+    document.title = `${L(g.name)} · ${t('appTitle')}`;
+    return renderSetup(g);
+  }
   document.title = `${t('appTitle')} · Board Game MC`;
-  if (page === 'game' && gameById(id)) return renderSetup(gameById(id));
   renderHome();
 }
 window.addEventListener('hashchange', route);
+
+function langMenu() {
+  return h('div', { class: 'lang-seg', role: 'group', 'aria-label': t('uiLang') }, UI_LANGS.map((l) => h('button', {
+    class: settings.uiLang === l.id ? 'on' : '',
+    'aria-pressed': settings.uiLang === l.id ? 'true' : 'false',
+    title: l.label,
+    onclick: () => switchLang(l.id),
+  }, l.short)));
+}
+
+/** Change language and move to that language's URL (/, /zh-hans/, /en/), keeping the current screen. */
+function switchLang(id) {
+  settings.uiLang = id;
+  saveSettings();
+  const prefix = { zh: '', zhs: 'zh-hans/', en: 'en/' }[id];
+  const target = new URL(prefix || './', document.baseURI);
+  target.hash = location.hash;
+  if (target.pathname !== location.pathname) location.href = target.href;
+  else route();
+}
 
 function header({ back } = {}) {
   return h('header', { class: 'topbar' },
     back
       ? h('button', { class: 'icon-btn', 'aria-label': t('back'), onclick: () => { location.hash = '#/'; } }, '←')
-      : h('div', { class: 'brand' }, h('span', { class: 'brand-logo' }, '🎲'), h('span', {}, t('appTitle'))),
+      : h('a', { class: 'brand', href: '#/' }, h('img', { src: 'icons/icon.svg', alt: '', width: 30, height: 30 }), h('span', {}, t('appTitle'))),
     h('div', { class: 'topbar-actions' },
-      h('button', { class: 'pill', onclick: () => { settings.uiLang = settings.uiLang === 'zh' ? 'en' : 'zh'; saveSettings(); route(); } },
-        settings.uiLang === 'zh' ? 'EN' : '中文'),
-      h('button', { class: 'icon-btn', 'aria-label': t('settings'), onclick: openSettings }, '⚙️'),
+      langMenu(),
+      h('button', { class: 'icon-btn', 'aria-label': t('share'), title: t('share'), onclick: share }, '↗'),
+      h('button', { class: 'icon-btn', 'aria-label': t('settings'), title: t('settings'), onclick: openSettings }, '⚙'),
     ),
   );
 }
 
+async function share() {
+  const url = location.href.split('#')[0];
+  const data = { title: t('appTitle'), text: t('appSub'), url };
+  try {
+    if (navigator.share) await navigator.share(data);
+    else { await navigator.clipboard.writeText(url); toast(t('copied')); }
+  } catch { /* cancelled */ }
+}
+
+function toast(msg) {
+  const el = h('div', { class: 'toast' }, msg);
+  document.body.append(el);
+  setTimeout(() => el.classList.add('out'), 1600);
+  setTimeout(() => el.remove(), 2100);
+}
+
 // ---------- home ----------
-function renderHome() {
-  app.replaceChildren(
-    header(),
-    h('main', { class: 'wrap' },
-      h('section', { class: 'hero' },
-        h('h1', {}, t('appTitle')),
-        h('p', {}, t('appSub')),
+function gameCard(g) {
+  const fav = (settings.favorites || []).includes(g.id);
+  const favBtn = h('button', {
+    class: `fav ${fav ? 'on' : ''}`, 'aria-label': t('favorites'), 'aria-pressed': fav ? 'true' : 'false',
+    onclick: (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const on = toggleFavorite(g.id);
+      favBtn.classList.toggle('on', on);
+      favBtn.textContent = on ? '♥' : '♡';
+      renderHome(true);
+    },
+  }, fav ? '♥' : '♡');
+  return h('a', { class: 'game-card', href: `#/game/${g.id}`, style: { '--c1': g.colors[0], '--c2': g.colors[1] } },
+    h('div', { class: 'gc-art' }, h('span', { class: 'gc-emoji' }, g.emoji), favBtn),
+    h('div', { class: 'gc-body' },
+      h('div', { class: 'gc-name' }, L(g.name)),
+      h('div', { class: 'gc-tag' }, L(g.tagline)),
+      h('div', { class: 'gc-meta' },
+        h('span', {}, `👥 ${g.players.min}–${g.players.max}`),
+        g.time !== '—' ? h('span', {}, `⏳ ${g.time}′`) : null,
+        h('span', { class: 'gc-cat' }, L(CATEGORIES[g.category])),
       ),
-      h('h2', { class: 'section-title' }, t('gamesTitle')),
-      h('div', { class: 'game-grid' }, GAMES.map((g) => h('a', { class: 'game-card', href: `#/game/${g.id}` },
-        h('div', { class: 'game-emoji' }, g.emoji),
-        h('div', { class: 'game-info' },
-          h('div', { class: 'game-name' }, L(g.name)),
-          h('div', { class: 'game-tag' }, L(g.tagline)),
-          h('div', { class: 'game-meta' },
-            h('span', {}, `👥 ${g.players.min}–${g.players.max}`),
-            g.time !== '—' ? h('span', {}, `⏳ ${g.time} ${t('minutes')}`) : null),
-        ),
-      ))),
-      h('p', { class: 'tip' }, '💡 ', t('tipVoice')),
-      h('p', { class: 'tip' }, '📱 ', t('installHint')),
-      h('footer', { class: 'foot' }, t('footer')),
     ),
   );
+}
+
+function filtered() {
+  const q = ui.query.trim().toLowerCase();
+  return GAMES.filter((g) => {
+    if (ui.cat !== 'all' && g.category !== ui.cat) return false;
+    if (ui.players && (ui.players < g.players.min || ui.players > g.players.max)) return false;
+    if (!q) return true;
+    const hay = [g.name.zh, g.name.en, L(g.name), L(g.tagline), ...(g.aka || [])].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+function renderHome(keepScroll) {
+  const y = window.scrollY;
+  const grid = h('div', { class: 'game-grid' });
+  const paintGrid = () => {
+    const list = filtered();
+    grid.replaceChildren(...(list.length ? list.map(gameCard) : [h('p', { class: 'muted empty' }, t('noMatch'))]));
+  };
+  const chip = (label, on, onclick) => h('button', { class: `chip ${on ? 'on' : ''}`, onclick }, label);
+  const toolbar = h('div', { class: 'toolbar' });
+  const paintToolbar = () => toolbar.replaceChildren(
+    h('label', { class: 'search' }, h('span', { 'aria-hidden': 'true' }, '🔍'),
+      h('input', { type: 'search', placeholder: t('search'), value: ui.query, 'aria-label': t('search'),
+        oninput: (e) => { ui.query = e.target.value; paintGrid(); } })),
+    h('div', { class: 'chips' }, Object.entries(CATEGORIES).map(([id, label]) =>
+      chip(L(label), ui.cat === id, () => { ui.cat = id; paintToolbar(); paintGrid(); }))),
+    h('div', { class: 'chips' },
+      chip(t('anyPlayers'), !ui.players, () => { ui.players = 0; paintToolbar(); paintGrid(); }),
+      [3, 4, 5, 6, 7, 8, 10, 12].map((n) => chip(`${n}${settings.uiLang === 'en' ? '' : ' '}${settings.uiLang === 'en' ? 'p' : t('playersShort')}`, ui.players === n,
+        () => { ui.players = ui.players === n ? 0 : n; paintToolbar(); paintGrid(); }))),
+  );
+  paintToolbar();
+  paintGrid();
+
+  const recent = (settings.recent || []).map(gameById).filter(Boolean);
+  const favs = (settings.favorites || []).map(gameById).filter(Boolean);
+  const mini = (g) => h('a', { class: 'mini', href: `#/game/${g.id}`, style: { '--c1': g.colors[0], '--c2': g.colors[1] } },
+    h('span', { class: 'mini-emoji' }, g.emoji), h('span', {}, L(g.name)));
+
+  const orbit = ['🎲', '🃏', '🌙', '🐺', '🧀', '🙊', '🏰', '⏱️'];
+  app.replaceChildren(
+    header(),
+    h('main', { class: 'wrap home' },
+      h('section', { class: 'hero' },
+        h('div', { class: 'hero-orbit', 'aria-hidden': 'true' }, orbit.map((e, i) => h('span', { style: { '--i': i } }, e))),
+        h('span', { class: 'badge' }, '✨ ', t('heroBadge')),
+        h('h1', { class: 'hero-title' }, h('span', { class: 'grad' }, t('appTitle'))),
+        h('p', { class: 'hero-sub' }, t('appSub')),
+        h('div', { class: 'hero-cta' },
+          h('a', { class: 'btn primary big', href: '#games', onclick: (e) => { e.preventDefault(); document.getElementById('games').scrollIntoView({ behavior: 'smooth' }); } }, '🎲 ', t('heroCta')),
+          h('button', { class: 'btn ghost big', onclick: () => { location.hash = `#/game/${pick(GAMES.filter((g) => g.category !== 'tool')).id}`; } }, '🔀 ', t('heroRandom')),
+        ),
+        h('div', { class: 'stats' },
+          h('div', {}, h('b', {}, String(GAMES.length - 1)), h('span', {}, t('statGames'))),
+          h('div', {}, h('b', {}, '3'), h('span', {}, t('statLangs'))),
+          h('div', {}, h('b', {}, '100%'), h('span', {}, t('statFree'))),
+        ),
+      ),
+      h('section', { class: 'features' }, [
+        ['🔊', 'featVoice'], ['🃏', 'featDeal'], ['⏱️', 'featTimer'], ['🗣️', 'featNames'],
+      ].map(([icon, k]) => h('div', { class: 'feature' }, h('div', { class: 'feature-icon' }, icon), h('b', {}, t(k)), h('p', {}, t(`${k}Text`))))),
+      favs.length ? h('section', {}, h('h2', { class: 'section-title' }, '♥ ', t('favorites')), h('div', { class: 'mini-row' }, favs.map(mini))) : null,
+      recent.length ? h('section', {}, h('h2', { class: 'section-title' }, '🕘 ', t('recent')), h('div', { class: 'mini-row' }, recent.map(mini))) : null,
+      h('section', { id: 'games' },
+        h('h2', { class: 'section-title' }, '🎮 ', t('gamesTitle')),
+        toolbar,
+        grid,
+      ),
+      h('section', { class: 'tips' },
+        h('p', {}, '💡 ', t('tipVoice')),
+        h('p', {}, '📱 ', t('installHint')),
+      ),
+      h('footer', { class: 'foot' },
+        h('nav', { class: 'foot-links' }, GAMES.filter((g) => g.category !== 'tool').map((g) => h('a', { href: guideHref(g.id) }, L(g.name)))),
+        h('p', {}, t('footer'), ' · ', h('a', { href: 'https://github.com/bill2712/boardgame-mc', rel: 'noopener' }, 'GitHub')),
+      ),
+    ),
+  );
+  if (keepScroll) window.scrollTo(0, y);
 }
 
 // ---------- setup ----------
@@ -71,45 +215,38 @@ function renderSetup(game) {
 
   const body = h('div', { class: 'setup-body' });
   const startBtn = h('button', { class: 'btn big primary start', onclick: () => startGame(game, setup) }, '▶ ', t('start'));
+  const usesSeats = game.id !== 'codenames' && game.id !== 'charades';
 
   const paint = () => {
     const res = game.check(setup);
-    const deck = game.deck(setup);
     const counts = {};
-    for (const id of deck) counts[id] = (counts[id] || 0) + 1;
+    for (const id of game.deck(setup)) counts[id] = (counts[id] || 0) + 1;
     startBtn.disabled = res.errors.length > 0;
 
     body.replaceChildren(
-      // players
-      h('section', { class: 'card-sec' },
+      h('section', { class: 'card-sec players-sec' },
         h('div', { class: 'row' },
           h('div', { class: 'row-label' }, h('b', {}, t('players'))),
-          stepper(setup.n, game.players.min, game.players.max, 1, (v) => {
-            setup = makeSetup(game, v, setup.opts);
-            paint();
-          }, t('playersShort')),
+          stepper(setup.n, game.players.min, game.players.max, 1, (v) => { setup = makeSetup(game, v, setup.opts); paint(); }, t('playersShort')),
         ),
+        h('div', { class: 'people', 'aria-hidden': 'true' }, Array.from({ length: setup.n }, (_, i) => h('span', { style: { '--i': i } }, String(i + 1)))),
+        usesSeats ? namesEditor(setup.n) : null,
       ),
-      // roles
       game.roles.length ? h('section', { class: 'card-sec' },
         h('h3', {}, t('roles')),
-        game.roles.map((r) => {
+        h('div', { class: 'role-list' }, game.roles.map((r) => {
           let control;
           if (r.fixed) control = h('span', { class: 'count-tag' }, `${t('fixed')} ×${counts[r.id] || 1}`);
           else if (r.auto) control = h('span', { class: 'count-tag' }, `${t('auto')} ×${counts[r.id] || 0}`);
-          else if ((r.max || 1) === 1 && !r.min) {
-            control = toggle(!!setup.roles[r.id], (v) => { setup.roles[r.id] = v ? 1 : 0; paint(); });
-          } else {
-            control = stepper(setup.roles[r.id] || 0, r.min || 0, r.max || 1, 1, (v) => { setup.roles[r.id] = v; paint(); });
-          }
-          return h('div', { class: `row role team-${r.team}` },
-            h('div', { class: 'row-label' },
-              h('div', {}, r.emoji ? `${r.emoji} ` : '', h('b', {}, L(r.name))),
-              r.desc ? h('div', { class: 'row-desc' }, L(r.desc)) : null),
+          else if ((r.max || 1) === 1 && !r.min) control = toggle(!!setup.roles[r.id], (v) => { setup.roles[r.id] = v ? 1 : 0; paint(); });
+          else control = stepper(setup.roles[r.id] || 0, r.min || 0, r.max || 1, 1, (v) => { setup.roles[r.id] = v; paint(); });
+          const active = r.fixed || r.auto ? (counts[r.id] || 0) > 0 : (setup.roles[r.id] || 0) > 0;
+          return h('div', { class: `role team-${r.team} ${active ? 'active' : ''}` },
+            h('div', { class: 'role-emoji' }, r.emoji || '🎭'),
+            h('div', { class: 'row-label' }, h('b', {}, L(r.name)), r.desc ? h('div', { class: 'row-desc' }, L(r.desc)) : null),
             control);
-        }),
+        })),
       ) : null,
-      // options
       game.options.length ? h('section', { class: 'card-sec' },
         h('h3', {}, t('options')),
         game.options.filter((o) => !o.showIf || o.showIf(setup)).map((o) => {
@@ -117,16 +254,13 @@ function renderSetup(game) {
           const set = (v) => { setup.opts[o.id] = v; paint(); };
           if (o.type === 'toggle') control = toggle(!!setup.opts[o.id], set);
           else if (o.type === 'number') control = stepper(setup.opts[o.id], o.min, o.max, o.step || 1, set, unitLabel(o.unit));
-          else if (o.type === 'select') {
-            control = h('select', { class: 'select', onchange: (e) => set(e.target.value) },
-              o.choices.map((c) => h('option', { value: c.value, selected: setup.opts[o.id] === c.value }, L(c.label))));
-          }
+          else control = h('select', { class: 'select', onchange: (e) => set(e.target.value) },
+            o.choices.map((c) => h('option', { value: c.value, selected: setup.opts[o.id] === c.value }, L(c.label))));
           return h('div', { class: 'row' }, h('div', { class: 'row-label' }, L(o.label)), control);
         }),
       ) : null,
-      // summary
       h('section', { class: `card-sec summary ${res.errors.length ? 'has-errors' : ''}` },
-        h('div', {}, '📋 ', L(res.summary)),
+        h('div', { class: 'summary-main' }, '📋 ', L(res.summary)),
         res.errors.map((e) => h('div', { class: 'msg error' }, '⛔ ', L(e))),
         res.warnings.map((w) => h('div', { class: 'msg warn' }, '⚠️ ', L(w))),
       ),
@@ -135,13 +269,23 @@ function renderSetup(game) {
 
   app.replaceChildren(
     header({ back: true }),
-    h('main', { class: 'wrap' },
-      h('div', { class: 'setup-head' },
-        h('div', { class: 'game-emoji big' }, game.emoji),
-        h('div', {}, h('h1', {}, L(game.name)), h('p', { class: 'muted' }, L(game.tagline)))),
+    h('main', { class: 'wrap setup', style: { '--c1': game.colors[0], '--c2': game.colors[1] } },
+      h('div', { class: 'setup-hero' },
+        h('div', { class: 'setup-emoji' }, game.emoji),
+        h('div', { class: 'setup-title' },
+          h('h1', {}, L(game.name)),
+          h('p', {}, L(game.tagline)),
+          h('div', { class: 'gc-meta light' },
+            h('span', {}, `👥 ${game.players.min}–${game.players.max}`),
+            game.time !== '—' ? h('span', {}, `⏳ ${game.time} ${t('minutes')}`) : null,
+            game.best && game.best !== '—' ? h('span', {}, `⭐ ${t('best')} ${game.best}`) : null,
+            h('span', {}, L(CATEGORIES[game.category]))),
+        ),
+      ),
       h('details', { class: 'rules card-sec' },
         h('summary', {}, '📖 ', t('rules')),
-        h('ul', {}, (game.rules[settings.uiLang] || game.rules.en).map((line) => h('li', {}, line)))),
+        h('ul', {}, rulesOf(game).map((line) => h('li', {}, line))),
+        h('a', { class: 'guide-link', href: guideHref(game.id) }, t('guide'), ' →')),
       body,
       h('div', { class: 'sticky-start' }, startBtn),
     ),
@@ -149,17 +293,32 @@ function renderSetup(game) {
   paint();
 }
 
+function namesEditor(n) {
+  const names = settings.names || [];
+  const filled = names.slice(0, n).some((x) => x && x.trim());
+  return h('details', { class: 'names', open: filled },
+    h('summary', {}, '🗣️ ', t('names')),
+    h('p', { class: 'muted small' }, t('namesHint')),
+    h('div', { class: 'names-grid' }, Array.from({ length: n }, (_, i) => h('label', { class: 'name-field' },
+      h('span', {}, String(i + 1)),
+      h('input', {
+        type: 'text', maxlength: 12, value: names[i] || '', placeholder: t('namePh', { n: i + 1 }), autocomplete: 'off',
+        oninput: (e) => { settings.names = [...(settings.names || [])]; settings.names[i] = e.target.value; saveSettings(); },
+      })))),
+    filled ? h('button', { type: 'button', class: 'btn small', onclick: () => { settings.names = []; saveSettings(); route(); } }, t('clearNames')) : null,
+  );
+}
+
 function unitLabel(unit) {
   if (unit === 'min') return t('minutes');
-  if (unit === 'sec') return settings.uiLang === 'zh' ? '秒' : 's';
+  if (unit === 'sec') return settings.uiLang === 'en' ? 's' : '秒';
   return '';
 }
 
 function stepper(value, min, max, step, onChange, unit) {
-  const val = h('span', { class: 'step-val' }, String(value), unit ? h('small', {}, ` ${unit}`) : null);
   return h('div', { class: 'stepper' },
     h('button', { type: 'button', class: 'step-btn', disabled: value <= min, 'aria-label': '−', onclick: () => onChange(Math.max(min, value - step)) }, '−'),
-    val,
+    h('span', { class: 'step-val' }, String(value), unit ? h('small', {}, ` ${unit}`) : null),
     h('button', { type: 'button', class: 'step-btn', disabled: value >= max, 'aria-label': '+', onclick: () => onChange(Math.min(max, value + step)) }, '+'),
   );
 }
@@ -174,6 +333,7 @@ function toggle(on, onChange) {
 // ---------- play ----------
 async function startGame(game, setup) {
   saveSetup(game.id, setup);
+  markPlayed(game.id);
   unlock();
   unlockAudio();
   requestWakeLock();
@@ -185,7 +345,6 @@ async function startGame(game, setup) {
     caption: h('div', { class: 'caption' }),
     countdown: h('div', { class: 'countdown hidden' }),
     stage: h('div', { class: 'stage' }),
-    pauseBtn: null,
     pausedBadge: h('div', { class: 'paused-badge hidden' }, '⏸ ', t('paused')),
   };
   const view = {
@@ -208,33 +367,39 @@ async function startGame(game, setup) {
     board(node) { els.board.replaceChildren(...(node ? [node] : [])); },
     phase(text, night) {
       els.phase.textContent = text;
+      els.phase.classList.remove('pop'); void els.phase.offsetWidth; els.phase.classList.add('pop');
       document.body.classList.toggle('night', !!night);
+      document.body.classList.toggle('day', !night);
     },
     onPause(p) {
       els.pausedBadge.classList.toggle('hidden', !p);
-      if (els.pauseBtn) els.pauseBtn.replaceChildren(h('span', { class: 'ctl-ico' }, p ? '▶' : '⏸'), h('span', {}, p ? t('resume') : t('pause')));
+      pauseBtn.replaceChildren(h('span', { class: 'ctl-ico' }, p ? '▶' : '⏸'), h('span', {}, p ? t('resume') : t('pause')));
     },
   };
 
   runner = new Runner(view);
   const r = runner;
-  els.pauseBtn = h('button', { class: 'ctl', onclick: () => r.togglePause() }, h('span', { class: 'ctl-ico' }, '⏸'), h('span', {}, t('pause')));
+  const pauseBtn = h('button', { class: 'ctl main', onclick: () => r.togglePause() }, h('span', { class: 'ctl-ico' }, '⏸'), h('span', {}, t('pause')));
+  document.body.classList.add('playing', 'day');
 
-  app.replaceChildren(h('div', { class: 'play' },
+  app.replaceChildren(sky(h), h('div', { class: 'play', style: { '--c1': game.colors[0], '--c2': game.colors[1] } },
     h('header', { class: 'play-top' },
       h('button', { class: 'icon-btn', 'aria-label': t('exit'), onclick: () => { if (confirm(t('exitConfirm'))) { location.hash = `#/game/${game.id}`; route(); } } }, '✕'),
       h('div', { class: 'play-title' }, h('div', { class: 'play-game' }, `${game.emoji} ${L(game.name)}`), els.phase),
-      els.clock,
+      h('div', { class: 'play-right' },
+        els.clock,
+        document.fullscreenEnabled ? h('button', { class: 'icon-btn small', 'aria-label': t('fullscreen'), onclick: toggleFullscreen }, '⛶') : null),
     ),
     els.board,
-    h('div', { class: 'play-main' }, els.pausedBadge, els.caption, els.countdown),
+    h('div', { class: 'play-main' }, els.pausedBadge, h('div', { class: 'caption-card' }, els.caption), els.countdown),
     els.stage,
     h('footer', { class: 'controls' },
-      h('button', { class: 'ctl', onclick: () => r.repeat() }, h('span', { class: 'ctl-ico' }, '🔁'), h('span', {}, t('repeat'))),
-      els.pauseBtn,
+      h('button', { class: 'ctl', onclick: () => r.repeat() }, h('span', { class: 'ctl-ico' }, '↺'), h('span', {}, t('repeat'))),
+      pauseBtn,
       h('button', { class: 'ctl', onclick: () => r.skip() }, h('span', { class: 'ctl-ico' }, '⏭'), h('span', {}, t('skip'))),
     ),
   ));
+  window.scrollTo(0, 0);
 
   const t0 = Date.now();
   let pausedFor = 0;
@@ -259,6 +424,7 @@ async function startGame(game, setup) {
   if (finished) {
     els.phase.textContent = t('gameOver');
     view.countdown(null);
+    confetti();
     view.stage(h('div', { class: 'panel end' },
       h('div', { class: 'panel-title' }, '🎉 ', t('gameOver')),
       h('div', { class: 'btn-col' },
@@ -270,18 +436,21 @@ async function startGame(game, setup) {
   }
 }
 
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen?.();
+  else document.documentElement.requestFullscreen?.().catch(() => {});
+}
+
 function stopGame() {
   if (runner) { runner.abort(); runner = null; }
   clearInterval(clockTimer);
-  document.body.classList.remove('night');
+  document.body.classList.remove('night', 'day', 'playing');
   releaseWakeLock();
 }
 
 async function requestWakeLock() {
   if (!settings.wakeLock || !('wakeLock' in navigator)) return;
-  try {
-    wakeLock = await navigator.wakeLock.request('screen');
-  } catch { /* not allowed */ }
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch { /* not allowed */ }
 }
 function releaseWakeLock() {
   try { wakeLock?.release(); } catch { /* ignore */ }
@@ -304,25 +473,26 @@ function openSettings() {
     voiceInfo.textContent = ttsSupported() ? t('noVoice') : t('noSpeech');
 
     dlg.replaceChildren(h('form', { method: 'dialog', class: 'dialog-body' },
-      h('div', { class: 'dialog-head' }, h('h2', {}, '⚙️ ', t('settings')), h('button', { class: 'icon-btn', value: 'close' }, '✕')),
-      field(t('uiLang'), seg([['zh', '中文'], ['en', 'English']], settings.uiLang, (v) => { settings.uiLang = v; saveSettings(); paint(); route(); })),
+      h('div', { class: 'dialog-head' }, h('h2', {}, '⚙ ', t('settings')), h('button', { class: 'icon-btn', value: 'close', 'aria-label': t('close') }, '✕')),
+      field(t('uiLang'), seg(UI_LANGS.map((l) => [l.id, l.label]), settings.uiLang, (v) => { dlg.close(); switchLang(v); })),
       field(t('voiceLang'), h('select', { class: 'select', onchange: (e) => { settings.voiceLang = e.target.value; saveSettings(); paint(); } },
         ['yue', 'cmn', 'en'].map((v) => h('option', { value: v, selected: v === vl }, t(v))))),
       field(t('voice'), h('select', { class: 'select', disabled: !list.length, onchange: (e) => { settings.voices[vl] = e.target.value; saveSettings(); } },
         list.length ? list.map((v) => h('option', { value: v.voiceURI, selected: cur && v.voiceURI === cur.voiceURI }, `${v.name} (${v.lang})`))
           : h('option', {}, t('voiceDefault')))),
       voiceInfo,
-      field(`${t('rate')} · ${settings.rate.toFixed(1)}×`, h('input', { type: 'range', min: 0.6, max: 1.5, step: 0.1, value: settings.rate,
-        oninput: (e) => { settings.rate = +e.target.value; saveSettings(); e.target.closest('.field').querySelector('.field-label').textContent = `${t('rate')} · ${settings.rate.toFixed(1)}×`; } })),
-      field(t('volume'), h('input', { type: 'range', min: 0, max: 1, step: 0.1, value: settings.volume, oninput: (e) => { settings.volume = +e.target.value; saveSettings(); } })),
-      field(t('pace'), seg([[1.5, t('paceSlow')], [1, t('paceNormal')], [0.7, t('paceFast')]], settings.pace, (v) => { settings.pace = v; saveSettings(); paint(); })),
-      h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('sfx')), toggle(settings.sfx, (v) => { settings.sfx = v; saveSettings(); paint(); })),
-      h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('wakeLock')), toggle(settings.wakeLock, (v) => { settings.wakeLock = v; saveSettings(); paint(); })),
-      h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('nightDim')), toggle(settings.nightDim, (v) => { settings.nightDim = v; saveSettings(); paint(); })),
       h('button', { type: 'button', class: 'btn big primary', onclick: () => {
         unlock(); cancel();
         speak(settings.voiceLang === 'en' ? 'Everyone, close your eyes. Welcome to Board Game MC!' : '天黑請閉眼。歡迎使用桌遊主持人！');
       } }, '🔊 ', t('testVoice')),
+      field(`${t('rate')} · ${settings.rate.toFixed(1)}×`, h('input', { type: 'range', min: 0.6, max: 1.5, step: 0.1, value: settings.rate,
+        oninput: (e) => { settings.rate = +e.target.value; saveSettings(); e.target.closest('.field').querySelector('.field-label').textContent = `${t('rate')} · ${settings.rate.toFixed(1)}×`; } })),
+      field(t('volume'), h('input', { type: 'range', min: 0, max: 1, step: 0.1, value: settings.volume, oninput: (e) => { settings.volume = +e.target.value; saveSettings(); } })),
+      field(t('pace'), seg([[1.5, t('paceSlow')], [1, t('paceNormal')], [0.7, t('paceFast')]], settings.pace, (v) => { settings.pace = v; saveSettings(); paint(); })),
+      field(t('theme'), seg([['auto', t('themeAuto')], ['dark', t('themeDark')], ['light', t('themeLight')]], settings.theme, (v) => { settings.theme = v; saveSettings(); applyTheme(); paint(); })),
+      h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('sfx')), toggle(settings.sfx, (v) => { settings.sfx = v; saveSettings(); paint(); })),
+      h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('wakeLock')), toggle(settings.wakeLock, (v) => { settings.wakeLock = v; saveSettings(); paint(); })),
+      h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('nightDim')), toggle(settings.nightDim, (v) => { settings.nightDim = v; saveSettings(); paint(); })),
     ));
   };
   paint();
@@ -333,7 +503,7 @@ function openSettings() {
 }
 
 function field(label, control) {
-  return h('label', { class: 'field' }, h('span', { class: 'field-label' }, label), control);
+  return h('div', { class: 'field' }, h('span', { class: 'field-label' }, label), control);
 }
 
 function seg(options, value, onChange) {

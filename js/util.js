@@ -7,7 +7,12 @@ export function h(tag, attrs, ...kids) {
     for (const [k, v] of Object.entries(attrs)) {
       if (v == null || v === false) continue;
       if (k === 'class') el.className = v;
-      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'style' && typeof v === 'object') {
+        for (const [sk, sv] of Object.entries(v)) {
+          if (sk.startsWith('--')) el.style.setProperty(sk, sv);
+          else el.style[sk] = sv;
+        }
+      }
       else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
       else if (k === 'text') el.textContent = v;
       else if (v === true) el.setAttribute(k, '');
@@ -71,3 +76,5 @@ export function countBy(list) {
   for (const x of list) out[x] = (out[x] || 0) + 1;
   return out;
 }
+
+export const ucfirst = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
