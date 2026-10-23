@@ -1,8 +1,10 @@
 import { h, fmtTime, pick } from './util.js';
-import { settings, saveSettings, loadSetup, saveSetup, markPlayed, toggleFavorite } from './settings.js';
+import { settings, saveSettings, loadSetup, saveSetup, markPlayed, toggleFavorite, loadStats, recordPlay, recordWinner, clearStats } from './settings.js';
 import { t, L, N, UI_LANGS } from './i18n.js';
 import { GAMES, gameById, makeSetup, restoreSetup } from './games/index.js';
-import { CATEGORIES } from './content.js';
+import { CATEGORIES, ROLE_TIPS } from './content.js';
+import { customPairs, customWords } from './games/words.js';
+import { GUIDES } from './guides.js';
 import { Runner, renderRoleCard, seatLabel, playerName as playerNameOf } from './runner.js';
 import { supported as ttsSupported, voicesFor, currentVoice, onVoices, cancel, unlockWith, onStatus, status as ttsStatus, resetVoiceMemory } from './speech.js';
 import { unlockAudio } from './sound.js';
@@ -41,10 +43,53 @@ function guideHref(id) {
   return `${prefix}games/${id}/`;
 }
 
+/** Relative link to a long-form guide article in the current language. */
+function articleHref(id) {
+  const prefix = settings.uiLang === 'en' ? 'en/' : settings.uiLang === 'zhs' ? 'zh-hans/' : '';
+  return `${prefix}guides/${id}/`;
+}
+
 /** Link to an in-app screen on the current page (ignores <base href>). */
 const hashHref = (hash) => `${location.pathname}${location.search}${hash}`;
 
 const rulesOf = (game) => (settings.uiLang === 'en' ? game.rules.en : game.rules.zh.map((r) => L({ zh: r })));
+
+/** Display name for a winner id: good / evil / neutral, team1…team4, or a game's own team names. */
+function teamLabel(game, team) {
+  if (game.teamNames?.[team]) return L(game.teamNames[team]);
+  if (team === 'good') return t('teamGood');
+  if (team === 'evil') return t('teamEvil');
+  if (team === 'neutral') return t('teamNeutral');
+  const m = /^team(\d+)$/.exec(team);
+  return m ? t('teamN', { n: m[1] }) : team;
+}
+
+/** Sides that can win a game, for the "who won?" buttons. Party games without sides return []. */
+function winnerChoices(game) {
+  if (game.teamNames) return Object.keys(game.teamNames);
+  const teams = new Set(game.roles.map((r) => r.team));
+  return ['good', 'evil', 'neutral'].filter((x) => teams.has(x));
+}
+
+const tracksStats = (game) => game.category !== 'tool';
+
+function statsLine(game) {
+  const st = loadStats(game.id);
+  if (!st.plays) return null;
+  const wins = Object.entries(st.wins).sort((a, b) => b[1] - a[1]);
+  return h('section', { class: 'card-sec stats-sec' },
+    h('div', { class: 'stats-head' },
+      h('b', {}, '📊 ', t('stats')),
+      h('span', { class: 'muted small' }, t('statsPlays', { n: st.plays })),
+      h('button', { class: 'link-btn small', onclick: (e) => { clearStats(game.id); e.target.closest('.stats-sec').remove(); toast(t('statsCleared')); } }, t('statsClear'))),
+    wins.length ? h('div', { class: 'stats-bars' }, wins.map(([team, n]) => {
+      const total = wins.reduce((a, [, v]) => a + v, 0);
+      return h('div', { class: `stat-bar win-${team}` },
+        h('span', { class: 'sb-label' }, teamLabel(game, team)),
+        h('span', { class: 'sb-track' }, h('span', { class: 'sb-fill', style: { width: `${Math.round((n / total) * 100)}%` } })),
+        h('span', { class: 'sb-num' }, String(n)));
+    })) : null);
+}
 
 // ---------- routing ----------
 function route() {
@@ -194,7 +239,7 @@ function renderHome(keepScroll) {
           h('button', { class: 'btn ghost big', onclick: () => { location.hash = `#/game/${pick(GAMES.filter((g) => g.category !== 'tool')).id}`; } }, '🔀 ', t('heroRandom')),
         ),
         h('div', { class: 'stats' },
-          h('div', {}, h('b', {}, String(GAMES.length - 1)), h('span', {}, t('statGames'))),
+          h('div', {}, h('b', {}, String(GAMES.filter((g) => g.category !== 'tool').length)), h('span', {}, t('statGames'))),
           h('div', {}, h('b', {}, '3'), h('span', {}, t('statLangs'))),
           h('div', {}, h('b', {}, '100%'), h('span', {}, t('statFree'))),
         ),
@@ -209,6 +254,10 @@ function renderHome(keepScroll) {
         toolbar,
         grid,
       ),
+      h('section', {},
+        h('h2', { class: 'section-title' }, '📚 ', t('moreGuides')),
+        h('div', { class: 'guide-cards' }, GUIDES.map((g) => h('a', { class: 'guide-card', href: articleHref(g.id) },
+          h('span', { class: 'guide-emoji' }, g.emoji), h('span', {}, h('b', {}, L(g.short)), h('small', {}, L(g.desc))))))),
       h('section', { class: 'tips' },
         h('p', {}, '💡 ', t('tipVoice')),
         h('p', {}, '📱 ', t('installHint')),
@@ -299,6 +348,7 @@ function renderSetup(game) {
         h('summary', {}, '📖 ', t('rules')),
         h('ul', {}, rulesOf(game).map((line) => h('li', {}, line))),
         h('a', { class: 'guide-link', href: guideHref(game.id) }, t('guide'), ' →')),
+      tracksStats(game) ? statsLine(game) : null,
       body,
       h('div', { class: 'sticky-start' }, startBtn),
     ),
@@ -364,6 +414,7 @@ async function startGame(game, setup) {
     pausedBadge: h('div', { class: 'paused-badge hidden' }, '⏸ ', t('paused')),
     voiceBanner: h('div', { class: 'voice-banner hidden', role: 'alert' }),
     roleBtn: h('button', { class: 'icon-btn small role-btn hidden', 'aria-label': t('myRole'), title: t('myRole') }, '🪪'),
+    rulesBtn: h('button', { class: 'icon-btn small', 'aria-label': t('rulesNow'), title: t('rulesNow') }, '📖'),
   };
   const view = {
     caption(text) {
@@ -399,6 +450,7 @@ async function startGame(game, setup) {
   runner = new Runner(view);
   const r = runner;
   els.roleBtn.addEventListener('click', () => { if (r.dealtCards) openRoleRecall(r, r.dealtCards); });
+  els.rulesBtn.addEventListener('click', () => openRulesDuringPlay(r, game, setup));
   const paintVoice = (st) => {
     const bad = ['failed', 'blocked', 'silent', 'unsupported'].includes(st.state);
     els.voiceBanner.classList.toggle('hidden', !bad);
@@ -422,6 +474,7 @@ async function startGame(game, setup) {
       h('div', { class: 'play-title' }, h('div', { class: 'play-game' }, `${game.emoji} ${L(game.name)}`), els.phase),
       h('div', { class: 'play-right' },
         els.roleBtn,
+        els.rulesBtn,
         els.clock,
         document.fullscreenEnabled ? h('button', { class: 'icon-btn small', 'aria-label': t('fullscreen'), onclick: toggleFullscreen }, '⛶') : null),
     ),
@@ -461,8 +514,25 @@ async function startGame(game, setup) {
     els.phase.textContent = t('gameOver');
     view.countdown(null);
     confetti();
+    let statBox = null;
+    if (tracksStats(game)) {
+      recordPlay(game.id, r.result);
+      const choices = winnerChoices(game);
+      if (r.result) statBox = h('div', { class: 'win-saved' }, '🏆 ', t('winSaved', { w: teamLabel(game, r.result) }));
+      else if (choices.length) {
+        statBox = h('div', { class: 'who-won' },
+          h('div', { class: 'muted small' }, t('whoWon')),
+          h('div', { class: 'btn-row wrap' },
+            choices.map((c) => h('button', { class: `btn win-${c}`, onclick: () => {
+              recordWinner(game.id, c);
+              statBox.replaceChildren(h('div', { class: 'win-saved' }, '🏆 ', t('winSaved', { w: teamLabel(game, c) })));
+            } }, teamLabel(game, c))),
+            h('button', { class: 'btn ghost', onclick: () => statBox.remove() }, t('noRecord'))));
+      }
+    }
     view.stage(h('div', { class: 'panel end' },
       h('div', { class: 'panel-title' }, '🎉 ', t('gameOver')),
+      statBox,
       h('div', { class: 'btn-col' },
         h('button', { class: 'btn big primary', onclick: () => startGame(game, setup) }, '🔄 ', t('playAgain')),
         h('button', { class: 'btn big', onclick: () => { location.hash = `#/game/${game.id}`; route(); } }, '⚙️ ', t('changeSetup')),
@@ -470,6 +540,38 @@ async function startGame(game, setup) {
       ),
     ));
   }
+}
+
+/** Rules and role tips while playing. The narration pauses while this is open. */
+function openRulesDuringPlay(r, game, setup) {
+  const wasPaused = r.paused;
+  if (!wasPaused) r.pause();
+  const dlg = h('dialog', { class: 'dialog rules-dlg' });
+  dlg.addEventListener('close', () => { dlg.remove(); if (!wasPaused) r.resume(); });
+  const inPlay = new Set(game.deck(setup));
+  const lang = settings.uiLang === 'en' ? 'en' : 'zh';
+  const roles = game.roles.filter((ro) => inPlay.has(ro.id));
+  dlg.append(h('div', { class: 'dialog-body' },
+    h('div', { class: 'dialog-head' },
+      h('h2', {}, '📖 ', L(game.name)),
+      h('button', { class: 'icon-btn', 'aria-label': t('close'), onclick: () => dlg.close() }, '✕')),
+    h('h3', {}, t('rulesNow')),
+    h('ol', { class: 'rules-list' }, rulesOf(game).map((line) => h('li', {}, line))),
+    roles.length ? [
+      h('h3', {}, t('rolesNow')),
+      h('div', { class: 'role-tips' }, roles.map((ro) => {
+        const tips = ROLE_TIPS[game.id]?.[ro.id];
+        return h('div', { class: `role-tip team-${ro.team}` },
+          h('div', { class: 'rt-head' }, h('span', { class: 'role-emoji' }, ro.emoji || '🎭'), h('b', {}, L(ro.name))),
+          ro.desc ? h('div', { class: 'row-desc' }, L(ro.desc)) : null,
+          tips ? h('ul', { class: 'rt-list' }, tips[lang].map((x) => h('li', {}, L({ zh: x, en: x })))) : null);
+      })),
+    ] : null,
+    h('a', { class: 'guide-link', href: guideHref(game.id), target: '_blank', rel: 'noopener' }, t('guide'), ' ↗'),
+    h('button', { type: 'button', class: 'btn big primary', onclick: () => dlg.close() }, '▶ ', t('resume')),
+  ));
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 /**
@@ -593,6 +695,10 @@ function openSettings() {
       h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('sfx')), toggle(settings.sfx, (v) => { settings.sfx = v; saveSettings(); paint(); })),
       h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('wakeLock')), toggle(settings.wakeLock, (v) => { settings.wakeLock = v; saveSettings(); paint(); })),
       h('div', { class: 'row' }, h('div', { class: 'row-label' }, t('nightDim')), toggle(settings.nightDim, (v) => { settings.nightDim = v; saveSettings(); paint(); })),
+      h('h3', { class: 'dialog-sub' }, '📝 ', t('customTitle')),
+      h('p', { class: 'muted small' }, t('customHint')),
+      customField('customPairs', t('customPairsLabel'), t('customPairsPh'), () => customPairs().length),
+      customField('customWords', t('customWordsLabel'), t('customWordsPh'), () => customWords().length),
     ));
   };
   paint();
@@ -600,6 +706,15 @@ function openSettings() {
   dlg.addEventListener('close', () => { offVoices(); dlg.remove(); });
   document.body.append(dlg);
   dlg.showModal();
+}
+
+/** A textarea for one custom word list, saved as you type, with a live count. */
+function customField(key, label, placeholder, count) {
+  const badge = h('span', { class: 'count-tag' }, t('customCount', { n: count() }));
+  return h('label', { class: 'field' },
+    h('span', { class: 'field-label' }, label, ' ', badge),
+    h('textarea', { class: 'textarea', rows: 4, placeholder, spellcheck: 'false',
+      oninput: (e) => { settings[key] = e.target.value; saveSettings(); badge.textContent = t('customCount', { n: count() }); } }, settings[key] || ''));
 }
 
 function field(label, control) {

@@ -141,8 +141,8 @@ async function tracker(ctx, s) {
     await ctx.say(policy === 'L'
       ? tx(`頒布自由黨法案。自由黨 ${lib} 張，法西斯 ${fas} 張。`, `A Liberal policy is enacted. Liberal ${lib}, Fascist ${fas}.`)
       : tx(`頒布法西斯法案。自由黨 ${lib} 張，法西斯 ${fas} 張。`, `A Fascist policy is enacted. Liberal ${lib}, Fascist ${fas}.`));
-    if (lib >= 5) { await ctx.say(tx('五張自由黨法案，自由黨勝利！', 'Five Liberal policies. The Liberals win!')); return 'over'; }
-    if (fas >= 6) { await ctx.say(tx('六張法西斯法案，法西斯勝利！', 'Six Fascist policies. The Fascists win!')); return 'over'; }
+    if (lib >= 5) { ctx.result('good'); await ctx.say(tx('五張自由黨法案，自由黨勝利！', 'Five Liberal policies. The Liberals win!')); return 'over'; }
+    if (fas >= 6) { ctx.result('evil'); await ctx.say(tx('六張法西斯法案，法西斯勝利！', 'Six Fascist policies. The Fascists win!')); return 'over'; }
     if (policy === 'F' && fas === 3) await ctx.say(tx('注意：從現在開始，如果希特勒當選總理，法西斯即時勝利。', 'Warning: from now on, if Hitler is elected Chancellor, the Fascists win.'));
     if (policy === 'F' && fas === 5) await ctx.say(tx('否決權已解鎖：總理和總統都同意的話，可以棄掉兩張法案。', 'Veto power unlocked: if the Chancellor and President agree, both policies can be discarded.'));
     const power = policy === 'F' && !chaos ? pw[fas - 1] : null;
@@ -156,7 +156,7 @@ async function tracker(ctx, s) {
             { id: 'yes', label: tx('💀 是希特勒！', '💀 It was Hitler!'), style: 'good' },
           ],
         });
-        if (r === 'yes') { await ctx.say(tx('希特勒被處決，自由黨勝利！', 'Hitler has been executed. The Liberals win!')); return 'over'; }
+        if (r === 'yes') { ctx.result('good'); await ctx.say(tx('希特勒被處決，自由黨勝利！', 'Hitler has been executed. The Liberals win!')); return 'over'; }
         await ctx.say(tx('被處決的玩家不可以再發言或投票。', 'The executed player may no longer speak or vote.'));
       } else {
         await ctx.ready(ctx.t('done'));
@@ -214,7 +214,7 @@ async function tracker(ctx, s) {
           { id: 'yes', label: tx('💀 是希特勒！', '💀 Yes, Hitler!'), style: 'evil' },
         ],
       });
-      if (r === 'yes') { await ctx.say(tx('希特勒當選總理，法西斯勝利！', 'Hitler has been elected Chancellor. The Fascists win!')); return; }
+      if (r === 'yes') { ctx.result('evil'); await ctx.say(tx('希特勒當選總理，法西斯勝利！', 'Hitler has been elected Chancellor. The Fascists win!')); return; }
     }
     await ctx.say(tx('立法：總統抽三張法案，秘密棄一張，交兩張給總理；總理棄一張，頒布一張。', 'Legislative session: the President draws three policies, discards one in secret, and passes two to the Chancellor, who discards one and enacts the other.'));
     const policy = await ctx.buttons({

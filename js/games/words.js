@@ -1,3 +1,5 @@
+import { settings } from '../settings.js';
+
 // Word lists for word games. Each entry is [中文, English].
 
 // Pairs for Who's the Undercover: [civilian/undercover] in zh and en.
@@ -42,6 +44,69 @@ export const UNDERCOVER_PAIRS = [
   [['拖鞋', '涼鞋'], ['Slippers', 'Sandals']],
   [['熊貓', '北極熊'], ['Panda', 'Polar bear']],
   [['紅酒', '啤酒'], ['Wine', 'Beer']],
+  [['魚蛋', '燒賣'], ['Fish ball', 'Siu mai']],
+  [['港鐵', '巴士'], ['MTR', 'Bus']],
+  [['奶茶', '鴛鴦'], ['Milk tea', 'Yuenyeung']],
+  [['迪士尼', '海洋公園'], ['Disneyland', 'Ocean Park']],
+  [['八達通', '信用卡'], ['Octopus card', 'Credit card']],
+  [['蛋撻', '菠蘿包'], ['Egg tart', 'Pineapple bun']],
+  [['麻雀', '撲克'], ['Mahjong', 'Poker']],
+  [['颱風', '暴雨'], ['Typhoon', 'Rainstorm']],
+  [['維港', '太平山'], ['Victoria Harbour', 'The Peak']],
+  [['叉燒', '燒鵝'], ['Char siu', 'Roast goose']],
+  [['WhatsApp', 'Instagram'], ['WhatsApp', 'Instagram']],
+  [['近視', '老花'], ['Short-sighted', 'Long-sighted']],
+  [['牙膏', '洗面奶'], ['Toothpaste', 'Face wash']],
+  [['冷氣', '風扇'], ['Air conditioner', 'Fan']],
+  [['考試', '測驗'], ['Exam', 'Quiz']],
+  [['男朋友', '前度'], ['Boyfriend', 'Ex']],
+  [['自助餐', '放題'], ['Buffet', 'All-you-can-eat']],
+  [['外賣', '堂食'], ['Takeaway', 'Dine-in']],
+  [['筷子', '叉'], ['Chopsticks', 'Fork']],
+  [['日本', '韓國'], ['Japan', 'Korea']],
+  [['貓', '狗'], ['Cat', 'Dog']],
+  [['西瓜', '哈密瓜'], ['Watermelon', 'Cantaloupe']],
+  [['跑步機', '單車機'], ['Treadmill', 'Exercise bike']],
+  [['雪櫃', '冰格'], ['Fridge', 'Freezer']],
+  [['唱K', '卡拉OK'], ['Karaoke room', 'Karaoke bar']],
+  [['醫生', '牙醫'], ['Doctor', 'Dentist']],
+  [['結婚', '訂婚'], ['Wedding', 'Engagement']],
+  [['雨傘', '太陽傘'], ['Umbrella', 'Parasol']],
+  [['口罩', '眼罩'], ['Face mask', 'Eye mask']],
+];
+
+// Spectrum cards for Wavelength: [left end, right end] in zh and en.
+export const SPECTRA = [
+  [['冷', '熱'], ['Cold', 'Hot']],
+  [['難吃', '好吃'], ['Tastes bad', 'Tastes good']],
+  [['沒用', '有用'], ['Useless', 'Useful']],
+  [['便宜', '昂貴'], ['Cheap', 'Expensive']],
+  [['悶', '刺激'], ['Boring', 'Exciting']],
+  [['軟', '硬'], ['Soft', 'Hard']],
+  [['安全', '危險'], ['Safe', 'Dangerous']],
+  [['過時', '潮流'], ['Out of fashion', 'Trendy']],
+  [['容易', '困難'], ['Easy', 'Hard to do']],
+  [['小眾', '大眾'], ['Niche', 'Mainstream']],
+  [['健康', '不健康'], ['Healthy', 'Unhealthy']],
+  [['醜', '靚'], ['Ugly', 'Beautiful']],
+  [['安靜', '嘈吵'], ['Quiet', 'Loud']],
+  [['慢', '快'], ['Slow', 'Fast']],
+  [['恐怖', '可愛'], ['Scary', 'Cute']],
+  [['被高估', '被低估'], ['Overrated', 'Underrated']],
+  [['小朋友喜歡', '大人喜歡'], ['Kids like it', 'Adults like it']],
+  [['香港', '外國'], ['Feels Hong Kong', 'Feels foreign']],
+  [['真實', '虛構'], ['Real', 'Fictional']],
+  [['必需品', '奢侈品'], ['Necessity', 'Luxury']],
+  [['臭', '香'], ['Smells bad', 'Smells good']],
+  [['短命', '長壽'], ['Short-lived', 'Long-lasting']],
+  [['低科技', '高科技'], ['Low-tech', 'High-tech']],
+  [['正常', '古怪'], ['Normal', 'Weird']],
+  [['淡', '濃味'], ['Bland', 'Strong flavour']],
+  [['輕', '重'], ['Light', 'Heavy']],
+  [['普通', '傳奇'], ['Ordinary', 'Legendary']],
+  [['室內', '戶外'], ['Indoor', 'Outdoor']],
+  [['好人', '壞人'], ['Hero', 'Villain']],
+  [['休閒', '正式'], ['Casual', 'Formal']],
 ];
 
 // Single words for Insider.
@@ -149,4 +214,28 @@ export function wordPool() {
   SPYFALL_LOCATIONS.forEach(add);
   UNDERCOVER_PAIRS.forEach(([zh, en]) => { add([zh[0], en[0]]); add([zh[1], en[1]]); });
   return out;
+}
+
+// ---- Custom words typed by the players (Settings › Custom words) ----
+
+/** Pairs from "civilian word, undercover word" lines. Returned like UNDERCOVER_PAIRS. */
+export function customPairs() {
+  return (settings.customPairs || '').split('\n')
+    .map((line) => line.split(/[,，、/|]/).map((x) => x.trim()).filter(Boolean))
+    .filter((p) => p.length >= 2)
+    .map(([a, b]) => [[a, b], [a, b]]);
+}
+
+/** Single words, one per line. Returned like INSIDER_WORDS ([zh, en], same text). */
+export function customWords() {
+  return (settings.customWords || '').split('\n')
+    .map((x) => x.trim()).filter(Boolean)
+    .map((w) => [w, w]);
+}
+
+/** Built-in list plus the players' own words when the option asks for them. */
+export function withCustom(list, custom, mode) {
+  if (mode === 'custom' && custom.length) return custom;
+  if (mode === 'mix') return [...list, ...custom];
+  return list;
 }

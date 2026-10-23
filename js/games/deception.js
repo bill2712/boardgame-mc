@@ -105,6 +105,7 @@ export default {
 
     ctx.phase(tx('結算', 'Result'));
     if (!solved) {
+      ctx.result('evil');
       await ctx.say(tx('三輪調查結束，仍未破案，兇手勝利！', 'Three rounds are over and the case is unsolved. The murderer wins!'));
       return;
     }
@@ -114,8 +115,10 @@ export default {
         title: tx('兇手找到目擊者了嗎？', 'Did they find the Witness?'),
         buttons: [{ id: 'hit', label: tx('👀 找到了', '👀 Found'), style: 'evil' }, { id: 'miss', label: tx('🛡️ 找錯了', '🛡️ Missed'), style: 'good' }],
       });
+      ctx.result(r === 'hit' ? 'evil' : 'good');
       await ctx.say(r === 'hit' ? tx('目擊者被滅口，兇手反敗為勝！', 'The Witness is silenced. The murderer wins!') : tx('目擊者安全，調查員勝利！', 'The Witness is safe. The investigators win!'));
     } else {
+      ctx.result('good');
       await ctx.say(tx('真相大白，調查員勝利！', 'The truth is out. The investigators win!'));
     }
   },

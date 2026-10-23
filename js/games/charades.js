@@ -1,5 +1,5 @@
 import { tx, shuffle, fmtTime } from '../util.js';
-import { TOPICS, ACTIONS } from './words.js';
+import { TOPICS, ACTIONS, customWords } from './words.js';
 
 const MODES = {
   act: { label: tx('做動作（不可以說話）', 'Act it out (no talking)'), say: tx('只可以做動作，不可以說話', 'act it out without talking') },
@@ -38,6 +38,7 @@ export default {
     { id: 'topic', type: 'select', label: tx('題目類別', 'Category'), default: 'mix', choices: [
       { value: 'mix', label: tx('混合', 'Mixed') },
       { value: 'actions', label: tx('動作', 'Actions') },
+      { value: 'custom', label: tx('自訂詞語', 'Custom words') },
       ...TOPICS.map((t, i) => ({ value: String(i), label: tx(t.name[0], t.name[1]) })),
     ] },
     { id: 'wordLang', type: 'select', label: tx('詞語語言', 'Word language'), default: 'both', choices: [
@@ -53,12 +54,15 @@ export default {
   },
 
   async run(ctx, s) {
-    const pool = s.opts.topic === 'actions' ? ACTIONS
-      : s.opts.topic === 'mix' ? [...ACTIONS, ...TOPICS.flatMap((t) => t.words)]
-        : TOPICS[+s.opts.topic].words;
+    const custom = customWords();
+    const topic = s.opts.topic === 'custom' && !custom.length ? 'mix' : s.opts.topic; // no custom words yet: use the mix
+    const pool = topic === 'custom' ? custom
+      : topic === 'actions' ? ACTIONS
+        : topic === 'mix' ? [...ACTIONS, ...TOPICS.flatMap((t) => t.words)]
+          : TOPICS[+topic].words;
     let deck = shuffle(pool);
     const draw = () => { if (!deck.length) deck = shuffle(pool); return deck.pop(); };
-    const fmt = (w) => (s.opts.wordLang === 'both' ? [w[0], w[1]] : s.opts.wordLang === 'en' ? [w[1]] : [w[0]]);
+    const fmt = (w) => (w[0] === w[1] ? [w[0]] : s.opts.wordLang === 'both' ? [w[0], w[1]] : s.opts.wordLang === 'en' ? [w[1]] : [w[0]]);
     const T = s.opts.teams;
     const scores = Array(T).fill(0);
     const teamName = (i) => tx(`第 ${i + 1} 隊`, `Team ${i + 1}`);
@@ -115,6 +119,7 @@ export default {
     const winners = scores.map((sc, i) => (sc === best ? i + 1 : null)).filter(Boolean);
     ctx.phase(tx('結算', 'Result'));
     paintScores(-1);
+    if (winners.length === 1) ctx.result(`team${winners[0]}`);
     await ctx.say(winners.length > 1
       ? tx(`平手！第 ${winners.join('、')} 隊同樣有 ${best} 分。`, `It's a tie! Teams ${winners.join(' and ')} each have ${best} points.`)
       : tx(`第 ${winners[0]} 隊以 ${best} 分勝出！`, `Team ${winners[0]} wins with ${best} points!`));

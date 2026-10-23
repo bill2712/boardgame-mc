@@ -170,7 +170,7 @@ export default {
   },
 };
 
-async function questTracker(ctx, s) {
+export async function questTracker(ctx, s) {
   const { n } = s;
   const { h, L } = ctx;
   const sizes = QUESTS[n];
@@ -211,6 +211,7 @@ async function questTracker(ctx, s) {
       rejects++;
       paint();
       if (rejects >= 5) {
+        ctx.result('evil');
         await ctx.say(tx('連續五次組隊被否決，壞人勝利！', 'Five rejected teams in a row. Evil wins!'));
         return;
       }
@@ -243,6 +244,7 @@ async function questTracker(ctx, s) {
   }
 
   if (fails() >= 3) {
+    ctx.result('evil');
     await ctx.say(tx('三個任務失敗，壞人勝利！', 'Three quests have failed. Evil wins!'));
     return;
   }
@@ -256,10 +258,12 @@ async function questTracker(ctx, s) {
         { id: 'miss', label: tx('🛡️ 刺錯人', '🛡️ Missed'), style: 'good' },
       ],
     });
+    ctx.result(hit === 'hit' ? 'evil' : 'good');
     await ctx.say(hit === 'hit'
       ? tx('刺客刺中梅林，壞人反敗為勝！', 'The Assassin found Merlin. Evil wins!')
       : tx('刺客刺錯人，好人勝利！', 'The Assassin missed. Good wins!'));
   } else {
+    ctx.result('good');
     await ctx.say(tx('好人完成了三個任務，好人勝利！', 'Good has completed three quests. Good wins!'));
   }
 }

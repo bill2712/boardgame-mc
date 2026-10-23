@@ -566,3 +566,76 @@ body.night .caption { color: #e6e4ff; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Wavelength dial ---------- */
+.wl { align-items: stretch; }
+.wl-wrap { position: relative; width: min(100%, 270px); aspect-ratio: 2 / 1; margin: 0 auto 22px; }
+.wl-dial { position: absolute; inset: 0; border-radius: 340px 340px 0 0; border: 2px solid var(--line); border-bottom: 0; overflow: hidden; transition: background .25s; }
+.wl-needle { position: absolute; left: calc(50% - 3px); bottom: 0; width: 6px; height: 92%; border-radius: 6px; background: var(--text); transform-origin: 50% 100%; box-shadow: 0 0 12px rgba(0, 0, 0, .4); transition: transform .12s; }
+.wl-needle::after { content: ""; position: absolute; left: -9px; bottom: -12px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); }
+.wl-end { position: absolute; bottom: -24px; font-weight: 800; font-size: 14px; max-width: 45%; }
+.wl-end.left { left: 0; text-align: left; color: var(--good); }
+.wl-end.right { right: 0; text-align: right; color: var(--evil); }
+.wl-slider { width: 100%; accent-color: var(--accent); height: 30px; margin: 0; }
+.wl { gap: 8px; padding: 14px; }
+.wl .panel-text { font-size: 14px; text-align: center; }
+.wl .btn-col { flex-direction: row; flex-wrap: wrap; }
+.wl .btn-col .btn { flex: 1 1 140px; font-size: 15px; }
+.article .role-table td:nth-child(n+3) { white-space: nowrap; }
+
+/* ---------- Just One / Picker ---------- */
+.secret-word { text-align: center; }
+.secret-word .secret { font-size: clamp(30px, 9vw, 48px); font-weight: 900; padding: 6px 0; }
+.picker { text-align: center; }
+.picker-roll { font-size: clamp(30px, 10vw, 52px); font-weight: 900; padding: 14px 0; animation: pop .3s ease; }
+.picker-list { text-align: left; margin: 0 auto; padding-left: 1.6em; max-width: 280px; font-size: 18px; font-weight: 700; line-height: 1.7; columns: 2; }
+
+/* ---------- stats ---------- */
+.stats-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stats-head .link-btn { margin-left: auto; }
+.link-btn { background: none; border: 0; padding: 4px; color: var(--muted); font: inherit; text-decoration: underline; cursor: pointer; }
+.link-btn.small { font-size: 13px; }
+.stats-bars { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.stat-bar { display: grid; grid-template-columns: minmax(64px, auto) 1fr 28px; align-items: center; gap: 8px; font-size: 14px; }
+.sb-track { height: 10px; border-radius: 10px; background: var(--surface-2); overflow: hidden; }
+.sb-fill { display: block; height: 100%; border-radius: 10px; background: var(--accent); }
+.win-good .sb-fill { background: var(--good); }
+.win-evil .sb-fill { background: var(--evil); }
+.win-neutral .sb-fill { background: var(--neutral); }
+.win-red .sb-fill, .win-team1 .sb-fill { background: #ff6b81; }
+.win-blue .sb-fill, .win-team2 .sb-fill { background: #6aa8ff; }
+.win-team3 .sb-fill { background: #4ade9b; }
+.win-team4 .sb-fill { background: #ffcf5c; }
+.sb-num { text-align: right; font-weight: 800; }
+.who-won { display: flex; flex-direction: column; gap: 8px; text-align: center; }
+.btn.win-good { background: var(--good-soft); border-color: var(--good); }
+.btn.win-evil { background: var(--evil-soft); border-color: var(--evil); }
+.btn.win-neutral { background: var(--neutral-soft); border-color: var(--neutral); }
+.win-saved { text-align: center; font-weight: 800; color: var(--gold); }
+
+/* ---------- rules during play / custom words ---------- */
+.rules-dlg h3, .dialog-sub { margin: 4px 0 0; font-size: 16px; }
+.rules-list { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; line-height: 1.55; }
+.role-tips { display: flex; flex-direction: column; gap: 8px; }
+.role-tip { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 14px; padding: 10px 12px; background: var(--surface); }
+.role-tip.team-good { border-left-color: var(--good); }
+.role-tip.team-evil { border-left-color: var(--evil); }
+.role-tip.team-neutral { border-left-color: var(--neutral); }
+.rt-head { display: flex; align-items: center; gap: 8px; }
+.rt-head .role-emoji { font-size: 22px; }
+.rt-list { margin: 6px 0 0; padding-left: 1.2em; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; color: var(--text); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 12px; padding: 10px; resize: vertical; }
+
+/* ---------- guide articles ---------- */
+.guide-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.guide-card { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; transition: transform .2s, border-color .2s; }
+.guide-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.guide-card b { display: block; margin-bottom: 4px; }
+.guide-card small { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.guide-emoji { font-size: 28px; flex: none; }
+.article-hero { text-align: center; padding: 18px 0 8px; }
+.article-hero h1 { font-size: clamp(24px, 6vw, 34px); line-height: 1.25; margin: 8px 0; }
+.article-hero .setup-emoji { margin: 0 auto; }
+.article .card-sec p { line-height: 1.7; }
+.article .card-sec li { line-height: 1.65; margin-bottom: 6px; }
+.role-tips h3 { margin: 0; font-size: 16px; }

@@ -13,11 +13,18 @@ import codenames from './codenames.js';
 import fakeArtist from './fake-artist.js';
 import charades from './charades.js';
 import timer from './timer.js';
+import resistance from './resistance.js';
+import mafia from './mafia.js';
+import wavelength from './wavelength.js';
+import justOne from './just-one.js';
+import fishbowl from './fishbowl.js';
+import picker from './picker.js';
 import { CONTENT } from '../content.js';
 
 const LIST = [
   cheeseThief, avalon, werewolf, oneNight, undercover, spyfall, codenames, werewords,
-  chameleon, deception, secretHitler, insider, fakeArtist, charades, timer,
+  mafia, resistance, wavelength, justOne, chameleon, deception, secretHitler, insider,
+  fakeArtist, fishbowl, charades, picker, timer,
 ];
 
 // Merge display content (category, colours, tips, FAQ) into each game.

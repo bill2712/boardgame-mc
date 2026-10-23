@@ -10,7 +10,7 @@ Runs entirely in the browser and works offline once added to your home screen.
 
 ---
 
-## 遊戲 Games (14 + 計時器)
+## 遊戲 Games (19 + 2 個工具 tools)
 
 | 遊戲 Game | 人數 | App 做什麼 What the app does |
 |---|---|---|
@@ -27,7 +27,13 @@ Runs entirely in the browser and works offline once added to your home screen.
 | 🗳️ [秘密希特勒 Secret Hitler](https://bill2712.github.io/boardgame-mc/games/secret-hitler/) | 5–10 | 夜晚流程、法案記錄、總統權力 · Night script, policy board, powers |
 | 🤫 [內鬼 Insider](https://bill2712.github.io/boardgame-mc/games/insider/) | 4–8 | 派身份＋詞語、猜詞計時、自動計算討論時間 · Roles + word, timers |
 | 🎨 [假藝術家 A Fake Artist Goes to New York](https://bill2712.github.io/boardgame-mc/games/fake-artist/) | 5–10 | 派題目、輪流畫一筆計時、假藝術家猜詞 · Prompts, stroke timer, fake guess |
+| 🔪 [殺手遊戲 Mafia](https://bill2712.github.io/boardgame-mc/games/mafia/) | 5–16 | **全自動法官**：殺手、醫生、警察夜晚操作，判定勝負 · **Automatic moderator** for Mafia, Doctor, Detective |
+| ✊ [抵抗組織 The Resistance](https://bill2712.github.io/boardgame-mc/games/resistance/) | 5–10 | 間諜互認、任務記錄板、否決計數 · Spy reveal, mission tracker, vote track |
+| 📡 [心靈同步 Wavelength](https://bill2712.github.io/boardgame-mc/games/wavelength/) | 2–20 | 電子轉盤：靈媒按住看目標，隊友轉指針，自動計分 · Digital dial with hold-to-see target and scoring |
+| ☝️ [Just One](https://bill2712.github.io/boardgame-mc/games/just-one/) | 3–12 | 合作猜詞：出詞、寫提示計時、計分評級 · Co-op: word, clue timer, score and rating |
+| 🥗 [沙律碗 Fishbowl](https://bill2712.github.io/boardgame-mc/games/fishbowl/) | 4–30 | 三輪（形容／一個詞／做動作），跳過放回碗 · Three rounds, skipped words go back in the bowl |
 | 🎭 [比手畫腳 Charades](https://bill2712.github.io/boardgame-mc/games/charades/) | 2–30 | 做動作／形容／畫畫，分隊計分 · Act / describe / draw, team scores |
+| 🎲 [抽籤分組 Picker](https://bill2712.github.io/boardgame-mc/games/picker/) | 任何 | 抽第一位、分隊、排次序 · First player, teams, turn order |
 | ⏱️ 通用計時器 Table Timer | 任何 | 自由討論或輪流發言 · Free discussion or turns |
 
 ## 功能 Features
@@ -37,13 +43,18 @@ Runs entirely in the browser and works offline once added to your home screen.
 - 🗣️ **玩家名字**：語音直接叫名（「阿明發言」）· Calls players by name
 - 🃏 **電子派牌**：翻牌動畫，沒有實體卡也能玩 · Digital dealing with card-flip animation
 - ⏱️ **計時器**：圓形倒數、剩一分鐘／三十秒／十秒語音提醒、震動 · Ring timer with voice reminders and vibration
+- 🪪 **再看身份**：忘記身份時按住按鈕再看一次 · See your role again, hold-to-view
+- 📖 **遊戲中看規則**：玩法和角色攻略，旁白自動暫停 · Rules and role tips mid-game, narration pauses
+- 📊 **戰績**：自動記錄每款遊戲勝方 · Win stats per game
+- 📝 **自訂詞庫**：誰是臥底、Just One、沙律碗等可加入自己的詞語 · Custom word lists for word games
 - 🔍 搜尋、分類、人數篩選、收藏、最近玩過 · Search, filters, favourites, recently played
 - 🌙 夜晚星空、白天日出動畫；深色／淺色主題；全螢幕；保持螢幕開啟 · Night sky / sunrise, dark & light themes, full screen, wake lock
 - 📱 PWA：可加入主畫面、離線使用 · Installable and works offline
 
 ## SEO
 
-- 每個遊戲有三種語言的靜態教學頁（玩法、角色、人數配置、技巧、FAQ）· Static guide pages per game in 3 languages
+- 每個遊戲有三種語言的靜態教學頁（玩法、角色、角色攻略、人數配置、技巧、FAQ）· Static guide pages per game in 3 languages
+- 攻略文章：新手主持指南、按人數選遊戲、推理遊戲必勝心法（`js/guides.js`）· Guide articles
 - JSON-LD（WebApplication、Game、FAQPage、BreadcrumbList）、hreflang、canonical、Open Graph 圖片、`sitemap.xml`、`robots.txt`
 - 首頁預先渲染內容，搜尋引擎不需要執行 JavaScript · Pre-rendered home content
 
