@@ -28,6 +28,8 @@ const DEFAULTS = {
   names: [],         // player names by seat (optional)
   favorites: [],     // game ids
   recent: [],        // game ids, most recent first
+  customPairs: '',   // one undercover pair per line, e.g. "可樂, 雪碧"
+  customWords: '',   // one word per line for guessing games
 };
 
 function load() {
@@ -68,4 +70,41 @@ export function toggleFavorite(gameId) {
   settings.favorites = [...fav];
   saveSettings();
   return fav.has(gameId);
+}
+
+// Win stats per game: { plays, wins: { good: 3, evil: 1, team1: 2, … }, last }.
+const statsKey = (id) => `bgmc.stats.${id}`;
+
+export function loadStats(gameId) {
+  const blank = { plays: 0, wins: {}, last: 0 };
+  if (!hasStorage) return blank;
+  try { return { ...blank, ...JSON.parse(localStorage.getItem(statsKey(gameId)) || '{}') }; } catch { return blank; }
+}
+
+function writeStats(gameId, st) {
+  if (!hasStorage) return;
+  try { localStorage.setItem(statsKey(gameId), JSON.stringify(st)); } catch { /* ignore */ }
+}
+
+/** Count a finished game, and the winner when it is known. */
+export function recordPlay(gameId, winner) {
+  const st = loadStats(gameId);
+  st.plays += 1;
+  st.last = Date.now();
+  if (winner) st.wins[winner] = (st.wins[winner] || 0) + 1;
+  writeStats(gameId, st);
+  return st;
+}
+
+/** Add a winner to the game that was just counted (picked by hand on the end screen). */
+export function recordWinner(gameId, winner) {
+  const st = loadStats(gameId);
+  st.wins[winner] = (st.wins[winner] || 0) + 1;
+  writeStats(gameId, st);
+  return st;
+}
+
+export function clearStats(gameId) {
+  if (!hasStorage) return;
+  try { localStorage.removeItem(statsKey(gameId)); } catch { /* ignore */ }
 }

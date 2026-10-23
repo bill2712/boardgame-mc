@@ -1,5 +1,5 @@
 import { tx, shuffle, pick, spokenDuration, ucfirst } from '../util.js';
-import { INSIDER_WORDS } from './words.js';
+import { INSIDER_WORDS, customWords, withCustom } from './words.js';
 
 export default {
   id: 'insider',
@@ -29,6 +29,9 @@ export default {
   ],
   options: [
     { id: 'guess', type: 'number', label: tx('猜詞時間', 'Guessing time'), min: 2, max: 10, step: 1, unit: 'min', default: 5 },
+    { id: 'words', type: 'select', label: tx('詞庫', 'Word list'), default: 'builtin', choices: [
+      { value: 'builtin', label: tx('內置詞庫', 'Built-in') }, { value: 'mix', label: tx('內置＋自訂詞語', 'Built-in + custom') }, { value: 'custom', label: tx('只用自訂詞語', 'Custom only') },
+    ] },
     { id: 'wordLang', type: 'select', label: tx('詞語語言', 'Word language'), default: 'both', choices: [
       { value: 'both', label: tx('中英對照', 'Both') },
       { value: 'zh', label: tx('中文', 'Chinese') },
@@ -43,8 +46,8 @@ export default {
 
   async run(ctx, s) {
     const roles = shuffle(this.deck(s));
-    const w = pick(INSIDER_WORDS);
-    const word = s.opts.wordLang === 'both' ? `${w[0]} / ${w[1]}` : s.opts.wordLang === 'en' ? w[1] : w[0];
+    const w = pick(withCustom(INSIDER_WORDS, customWords(), s.opts.words));
+    const word = s.opts.wordLang === 'both' && w[0] !== w[1] ? `${w[0]} / ${w[1]}` : s.opts.wordLang === 'en' ? w[1] : w[0];
     const masterSeat = roles.indexOf('master') + 1;
     const insiderSeat = roles.indexOf('insider') + 1;
 

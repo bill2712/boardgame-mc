@@ -95,6 +95,7 @@ export default {
     });
     ctx.phase(tx('結算', 'Result'));
     if (caught === 'no') {
+      ctx.result('evil');
       await ctx.say(tx(`變色龍是${ctx.seat(cham).zh}，答案是${secret[0]}。變色龍勝利！`, `The Chameleon was ${ctx.seat(cham).en} and the word was ${secret[1]}. The Chameleon wins!`));
     } else {
       await ctx.say(tx('變色龍被抓到了！你還有一次機會，猜猜答案是什麼？', 'The Chameleon is caught! One last chance: guess the secret word.'));
@@ -106,6 +107,7 @@ export default {
         ],
       });
       ctx.board(topicBoard(ctx, topic, lang, secret));
+      ctx.result(g === 'yes' ? 'evil' : 'good');
       await ctx.say(g === 'yes'
         ? tx(`答案就是${secret[0]}，變色龍逃脫成功！`, `The word was indeed ${secret[1]}. The Chameleon escapes!`)
         : tx(`答案是${secret[0]}，大家成功抓住變色龍！`, `The word was ${secret[1]}. You caught the Chameleon!`));

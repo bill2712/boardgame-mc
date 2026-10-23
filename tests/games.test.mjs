@@ -69,7 +69,7 @@ function mockCtx(setup, { maxSteps = 4000 } = {}) {
       if (result !== undefined) return result;
       return setup.__game === 'codenames' ? { winner: pick(['red', 'blue']), why: pick(['agents', 'assassin']) } : randInt(0, 8);
     },
-    vibrate() {}, name: () => null,
+    vibrate() {}, name: () => null, result() {},
     board() {}, stage() {}, phase(text) { checkText(text); }, sfx() {},
     seat: (n) => tx(`${n}號`, `player ${n}`),
     seats: (list) => joinNames(list.map((n) => tx(`${n}號`, `${n}`))),
@@ -199,4 +199,70 @@ test('restoreSetup drops stale or broken saved values', async () => {
   assert.equal(restoreSetup(ww, { n: 99 }).n, ww.players.default, 'bad player count');
   assert.equal(restoreSetup(ww, null).n, ww.players.default);
   assert.deepEqual(ww.check(restoreSetup(ww, { n: 6, roles: { wolf: 5 } })).errors, []);
+});
+
+test('role strategy tips point at real roles and are bilingual', async () => {
+  const { ROLE_TIPS } = await import('../js/content.js');
+  for (const [gameId, roles] of Object.entries(ROLE_TIPS)) {
+    const game = GAMES.find((g) => g.id === gameId);
+    assert.ok(game, `unknown game ${gameId}`);
+    for (const [roleId, tips] of Object.entries(roles)) {
+      assert.ok(game.roles.some((r) => r.id === roleId), `${gameId}: unknown role ${roleId}`);
+      assert.ok(tips.zh.length && tips.zh.length === tips.en.length, `${gameId}/${roleId} tips`);
+      assert.doesNotMatch(tips.zh.join(''), /[唔冇嘅咗揀睇嚟佢喺啲嘢俾畀晒攞]|而家|邊個/, `${gameId}/${roleId} Cantonese`);
+    }
+  }
+});
+
+test('wavelength scoring and mafia win check', async () => {
+  const { wavelengthScore } = await import('../js/games/wavelength.js');
+  assert.equal(wavelengthScore(50, 50), 4);
+  assert.equal(wavelengthScore(50, 56), 3);
+  assert.equal(wavelengthScore(50, 62), 2);
+  assert.equal(wavelengthScore(50, 70), 0);
+  const { mafiaWinner } = await import('../js/games/mafia.js');
+  const P = (list) => list.map(([role, alive], i) => ({ seat: i + 1, role, alive }));
+  assert.equal(mafiaWinner(P([['killer', false], ['civilian', true]])), 'good');
+  assert.equal(mafiaWinner(P([['killer', true], ['civilian', true], ['police', false]])), 'evil');
+  assert.equal(mafiaWinner(P([['killer', true], ['civilian', true], ['civilian', true]])), null);
+});
+
+test('custom words are parsed from settings', async () => {
+  const { settings } = await import('../js/settings.js');
+  const { customPairs, customWords, withCustom } = await import('../js/games/words.js');
+  settings.customPairs = '蘋果,梨\n可樂，雪碧\nbad line\n';
+  settings.customWords = '阿明\n\n 茶餐廳 \n';
+  assert.deepEqual(customPairs().map((p) => p[0]), [['蘋果', '梨'], ['可樂', '雪碧']]);
+  assert.deepEqual(customWords(), [['阿明', '阿明'], ['茶餐廳', '茶餐廳']]);
+  assert.equal(withCustom([['a', 'a']], customWords(), 'custom').length, 2);
+  assert.equal(withCustom([['a', 'a']], customWords(), 'mix').length, 3);
+  assert.equal(withCustom([['a', 'a']], [], 'custom').length, 1, 'falls back when no custom words');
+  settings.customPairs = ''; settings.customWords = '';
+});
+
+test('interface strings are standard written Chinese and both languages have the same keys', async () => {
+  const src = await import('node:fs').then((fs) => fs.readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8'));
+  const zh = src.slice(src.indexOf('  zh: {'), src.indexOf('  en: {'));
+  assert.doesNotMatch(zh, /[唔冇嘅咗揀睇嚟佢喺啲嘢俾畀晒攞]|而家|邊個|邊一位|望開/, 'Cantonese colloquial in UI strings');
+  const keys = (block) => [...block.matchAll(/^ {4}(\w+):/gm)].map((m) => m[1]).sort();
+  const en = src.slice(src.indexOf('  en: {'), src.indexOf('// Hong Kong words'));
+  assert.deepEqual(keys(zh), keys(en));
+});
+
+test('every game with a winner side can be labelled on the end screen', () => {
+  for (const g of GAMES) {
+    if (g.teamNames) assert.ok(Object.values(g.teamNames).every(isText), `${g.id} teamNames`);
+  }
+});
+
+test('guide articles are bilingual standard written Chinese', async () => {
+  const { GUIDES } = await import('../js/guides.js');
+  assert.equal(new Set(GUIDES.map((g) => g.id)).size, GUIDES.length);
+  for (const g of GUIDES) {
+    for (const k of ['title', 'short', 'desc']) assert.ok(isText(g[k]), `${g.id}.${k}`);
+    const texts = [g.title, g.desc, g.intro, ...(g.buckets || []).map((b) => b.note), ...g.sections.flatMap((s) => [s.h, ...(s.p || []), ...(s.list || [])])].filter(Boolean);
+    assert.ok(texts.every(isText), `${g.id} has text missing a language`);
+    assert.doesNotMatch(texts.map((x) => x.zh).join(''), /[唔冇嘅咗揀睇嚟佢喺啲嘢俾畀晒攞掣]|而家|邊個|望開/, `${g.id} Cantonese`);
+    for (const id of g.games) assert.ok(GAMES.some((x) => x.id === id), `${g.id} links unknown game ${id}`);
+  }
 });

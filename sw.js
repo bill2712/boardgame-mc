@@ -1,5 +1,5 @@
 // Offline support: network first, cache as fallback, so updates show up right away.
-const CACHE = 'bgmc-v4';
+const CACHE = 'bgmc-v5';
 const FILES = [
   './',
   'index.html',
@@ -18,6 +18,7 @@ const FILES = [
   'js/runner.js',
   'js/fx.js',
   'js/content.js',
+  'js/guides.js',
   'js/games/index.js',
   'js/games/words.js',
   'js/games/avalon.js',
@@ -35,6 +36,12 @@ const FILES = [
   'js/games/fake-artist.js',
   'js/games/charades.js',
   'js/games/timer.js',
+  'js/games/mafia.js',
+  'js/games/resistance.js',
+  'js/games/wavelength.js',
+  'js/games/just-one.js',
+  'js/games/fishbowl.js',
+  'js/games/picker.js',
 ];
 
 self.addEventListener('install', (e) => {

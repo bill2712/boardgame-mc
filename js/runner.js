@@ -371,6 +371,8 @@ export class Runner {
       seat: seatText,
       seats: (list) => joinNames(list.map(seatText)),
       name: playerName,
+      /** Record who won ('good' | 'evil' | 'neutral' | a team id) for the stats screen. */
+      result: (team) => { self.result = team; },
       vibrate: (p) => { try { navigator.vibrate?.(p); } catch { /* ignore */ } },
     };
   }

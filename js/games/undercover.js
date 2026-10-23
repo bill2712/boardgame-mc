@@ -1,5 +1,5 @@
 import { tx, shuffle, pick, ucfirst } from '../util.js';
-import { UNDERCOVER_PAIRS } from './words.js';
+import { UNDERCOVER_PAIRS, customPairs, withCustom } from './words.js';
 
 const R = {
   civilian: { name: tx('平民', 'Civilian'), team: 'good', desc: tx('大部分人拿到同一個詞語。', 'Most players share the same word.') },
@@ -50,6 +50,9 @@ export default {
       { value: 'en', label: tx('English', 'English') },
       { value: 'both', label: tx('中英對照', 'Both') },
     ] },
+    { id: 'words', type: 'select', label: tx('詞庫', 'Word list'), default: 'builtin', choices: [
+      { value: 'builtin', label: tx('內置詞庫', 'Built-in') }, { value: 'mix', label: tx('內置＋自訂詞組', 'Built-in + custom pairs') }, { value: 'custom', label: tx('只用自訂詞組', 'Custom pairs only') },
+    ] },
     { id: 'speak', type: 'number', label: tx('每人描述時間（0 = 不計時）', 'Time per description (0 = off)'), min: 0, max: 90, step: 5, unit: 'sec', default: 20 },
     { id: 'reveal', type: 'toggle', label: tx('出局時公開身份', 'Reveal role when out'), default: false },
   ],
@@ -68,12 +71,12 @@ export default {
 
   async run(ctx, s) {
     const roles = shuffle(this.deck(s));
-    const pair = pick(UNDERCOVER_PAIRS);
+    const pair = pick(withCustom(UNDERCOVER_PAIRS, customPairs(), s.opts.words));
     const flip = Math.random() < 0.5;
     const civ = flip ? 1 : 0;
     const und = flip ? 0 : 1;
     const lang = s.opts.wordLang === 'ui' ? ctx.settings.uiLang : s.opts.wordLang;
-    const word = (i) => (lang === 'both' ? `${pair[0][i]} / ${pair[1][i]}` : pair[lang === 'en' ? 1 : 0][i]);
+    const word = (i) => (lang === 'both' && pair[0][i] !== pair[1][i] ? `${pair[0][i]} / ${pair[1][i]}` : pair[lang === 'en' ? 1 : 0][i]);
     const P = roles.map((role, i) => ({ seat: i + 1, role, alive: true }));
 
     await ctx.say(tx('請大家圍成一圈，順時針由 1 號開始記住座位號碼，然後輪流查看自己的詞語。', 'Sit in a circle and number yourselves clockwise from 1. Then take turns viewing your word.'));
@@ -123,6 +126,7 @@ export default {
         : tx(`${ctx.seat(out).zh}出局。`, `${ucfirst(ctx.seat(out).en)} is out.`));
       const w = undercoverWinner(P);
       if (w) {
+        ctx.result(w === 'civilian' ? 'good' : 'evil');
         ctx.phase(ctx.t('gameOver'));
         await ctx.say(w === 'civilian' ? tx('臥底全部出局，平民勝利！', 'All undercovers are out. Civilians win!') : tx('臥底成功混到最後，臥底勝利！', 'The undercover survived to the end. Undercover wins!'));
         await ctx.say(tx(`平民的詞語是「${word(civ)}」，臥底的詞語是「${word(und)}」。`, `The civilian word was "${word(civ)}" and the undercover word was "${word(und)}".`));

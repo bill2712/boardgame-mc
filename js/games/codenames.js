@@ -19,6 +19,7 @@ export default {
   emoji: '🟥',
   name: tx('機密代號', 'Codenames'),
   tagline: tx('兩隊隊長用一個詞提示，帶隊友找出自己的特工', 'Two spymasters, one-word clues, find your agents'),
+  teamNames: { red: TEAM.red.name, blue: TEAM.blue.name },
   players: { min: 4, max: 20, default: 6 },
   time: '15',
   category: 'word',
@@ -172,6 +173,7 @@ export default {
     });
 
     ctx.phase(tx('結算', 'Result'));
+    ctx.result(result.winner);
     if (result.why === 'assassin') {
       await ctx.say(tx(`點中刺客！${TEAM[result.winner].name.zh}勝利！`, `The assassin was found! The ${TEAM[result.winner].name.en.toLowerCase()} wins!`));
     } else {

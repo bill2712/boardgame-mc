@@ -172,6 +172,7 @@ export default {
     const over = async () => {
       const w = checkWin(P, s.opts.win);
       if (!w) return false;
+      ctx.result(w);
       ctx.phase(ctx.t('gameOver'));
       await ctx.say(w === 'good' ? tx('所有狼人已經出局，好人勝利！', 'All werewolves are gone. The village wins!') : tx('狼人勝利！', 'The werewolves win!'));
       ctx.board(ctx.h('div', { class: 'reveal-list' }, P.map((p) => ctx.h('div', { class: `reveal team-${R[p.role].team} ${p.alive ? '' : 'dead'}` },

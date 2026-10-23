@@ -1,17 +1,19 @@
 // Builds the static, search-engine friendly pages from the game data:
 //   index.html, zh-hans/index.html, en/index.html   (app shell + pre-rendered home)
 //   games/<id>/, zh-hans/games/<id>/, en/games/<id>/ (guide pages)
+//   guides/<id>/, zh-hans/guides/<id>/, en/guides/<id>/ (articles)
 //   sitemap.xml, robots.txt, 404.html
 // Run: node scripts/build.mjs   (no dependencies)
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { GAMES, makeSetup } from '../js/games/index.js';
-import { CATEGORIES } from '../js/content.js';
+import { CATEGORIES, ROLE_TIPS } from '../js/content.js';
+import { GUIDES } from '../js/guides.js';
 import { inLang, strings, toHans } from '../js/i18n.js';
 
 export const SITE = 'https://bill2712.github.io/boardgame-mc/';
 const ROOT = new URL('..', import.meta.url).pathname;
-const VERSION = '3';
+const VERSION = '4';
 const LANGS = [
   { id: 'zh', prefix: '', html: 'zh-Hant', og: 'zh_HK', label: '繁體中文' },
   { id: 'zhs', prefix: 'zh-hans/', html: 'zh-Hans', og: 'zh_CN', label: '简体中文' },
@@ -81,6 +83,9 @@ function topbar(lang, langLinks) {
 
 const shortOf = (id) => ({ zh: '繁', zhs: '简', en: 'EN' }[id]);
 
+/** Cards linking to the long-form guide articles. */
+const guideCards = (lang, prefix, skip) => `<div class="guide-cards">${GUIDES.filter((g) => g.id !== skip).map((g) => `<a class="guide-card" href="${prefix}guides/${g.id}/"><span class="guide-emoji">${g.emoji}</span><span><b>${esc(inLang(g.short, lang))}</b><small>${esc(inLang(g.desc, lang))}</small></span></a>`).join('')}</div>`;
+
 // ---------- home (app shell) ----------
 function homePage(lang) {
   const L = LANGS.find((l) => l.id === lang);
@@ -89,7 +94,7 @@ function homePage(lang) {
   const base = lang === 'zh' ? './' : '../';
   const title = T(lang, '桌遊主持人 · 免費語音主持＋計時器｜狼人殺、阿瓦隆、芝士大盜、誰是臥底', 'Board Game MC · Free voice moderator & timer for Werewolf, Avalon, Cheese Thief and more');
   const desc = T(lang,
-    '免費網上桌遊主持人：粵語、普通話、英文語音自動主持夜晚流程，附討論計時、電子派牌。支援狼人殺、阿瓦隆、芝士大盜、一夜終極狼人、誰是臥底、間諜危機、機密代號等 14 款熱門桌遊，不用安裝。',
+    `免費網上桌遊主持人：粵語、普通話、英文語音自動主持夜晚流程，附討論計時、電子派牌。支援狼人殺、阿瓦隆、芝士大盜、一夜終極狼人、誰是臥底、間諜危機、機密代號等 ${playable.length} 款熱門桌遊，不用安裝。`,
     'A free online moderator for party board games: voice narration in Cantonese, Mandarin or English, discussion timers and digital role dealing for Werewolf, Avalon, Cheese Thief, One Night Ultimate Werewolf, Spyfall, Codenames and more. No install.');
   const alternates = [...LANGS.map((l) => ({ hreflang: l.html, path: l.prefix })), { hreflang: 'x-default', path: '' }];
   const jsonld = [
@@ -118,6 +123,8 @@ function homePage(lang) {
     <div class="game-grid">
       ${GAMES.map((g) => `<a class="game-card" href="${L.prefix}games/${g.id}/" style="--c1:${g.colors[0]};--c2:${g.colors[1]}"><div class="gc-art"><span class="gc-emoji">${g.emoji}</span></div><div class="gc-body"><h3 class="gc-name" style="margin:0">${esc(inLang(g.name, lang))}</h3><p class="gc-tag" style="margin:0">${esc(inLang(g.tagline, lang))}</p><div class="gc-meta"><span>👥 ${g.players.min}–${g.players.max}</span><span class="gc-cat">${esc(inLang(CATEGORIES[g.category], lang))}</span></div></div></a>`).join('\n      ')}
     </div>
+    <h2 class="section-title">📚 ${esc(S('moreGuides'))}</h2>
+    ${guideCards(lang, L.prefix)}
     <noscript><p class="tips">${esc(T(lang, '請開啟 JavaScript 使用語音主持功能。', 'Please enable JavaScript to use the voice moderator.'))}</p></noscript>
   </main>`;
   return `<!doctype html>
@@ -145,11 +152,16 @@ function guidePage(game, lang) {
   const homeHref = L.prefix || './';
   const appHref = `${homeHref}${lang === 'zh' ? '' : ''}#/game/${game.id}`;
   const isTool = game.category === 'tool';
-  const title = isTool
+  const isPicker = game.id === 'picker';
+  const title = isPicker
+    ? T(lang, `${name}｜免費抽籤、分隊、排次序工具 · 桌遊主持人`, `${name} | Free first-player, team and turn-order picker · Board Game MC`)
+    : isTool
     ? T(lang, `${name}｜免費桌遊發言計時器 · 桌遊主持人`, `${name} | Free board game speaking timer · Board Game MC`)
     : T(lang, `${name}主持人＋計時器｜玩法規則、角色、人數配置教學`, `${name} moderator & timer | Rules, roles and setup guide`);
   const rules = lines(lang, game.rules);
-  const suffix = isTool
+  const suffix = isPicker
+    ? T(lang, '免費抽籤工具，結果會用語音讀出，適合任何桌遊開局。', ' A free picker that reads the result aloud, handy at the start of any game.')
+    : isTool
     ? T(lang, '免費桌遊計時器，附語音提醒。', ' Free timer with voice reminders.')
     : T(lang, `免費${name}語音主持＋計時器。`, ` Free ${name} voice moderator and timer.`);
   const desc = clip(lang === 'en'
@@ -186,6 +198,11 @@ function guidePage(game, lang) {
       <tbody>${game.roles.map((r) => `<tr><td><b>${r.emoji || ''} ${esc(inLang(r.name, lang))}</b></td><td><span class="team-pill ${r.team}">${esc(teamLabel(r.team))}</span></td><td>${esc(inLang(r.desc, lang))}</td></tr>`).join('')}</tbody>
     </table></section>` : '';
 
+  const tipsFor = ROLE_TIPS[game.id] || {};
+  const strategy = game.roles.filter((r) => tipsFor[r.id]).length ? `
+    <h2>🧭 ${esc(T(lang, `${name}角色攻略`, `${name} role strategy`))}</h2>
+    <section class="card-sec role-tips">${game.roles.filter((r) => tipsFor[r.id]).map((r) => `<div class="role-tip team-${r.team}"><div class="rt-head"><span class="role-emoji">${r.emoji || '🎭'}</span><h3>${esc(inLang(r.name, lang))}</h3></div><ul class="rt-list">${lines(lang, tipsFor[r.id]).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}</section>` : '';
+
   const setupTable = game.roles.length ? `
     <h2>👥 ${esc(T(lang, '建議人數配置', 'Recommended setups'))}</h2>
     <section class="card-sec table-scroll"><table class="role-table">
@@ -217,7 +234,9 @@ function guidePage(game, lang) {
       </div>
     </header>
 
-    <section class="card-sec"><p>${esc(isTool
+    <section class="card-sec"><p>${esc(isPicker
+      ? T(lang, `${name}是桌遊主持人內置的免費工具：隨機抽出第一位玩家、把大家分成幾隊，或者排出輪流的次序，並用語音讀出結果。`, `${name} is a free tool in Board Game MC: it picks a random first player, splits everyone into teams or shuffles the turn order, and reads the result aloud.`)
+      : isTool
       ? T(lang, `${name}是桌遊主持人內置的免費工具，用語音提醒發言時間，適用於任何需要討論或輪流發言的桌遊。`, `${name} is a free tool in Board Game MC that keeps time with voice reminders, for any game with discussion or turn-based speaking.`)
       : T(lang, `想玩${name}但沒有人想當主持？桌遊主持人會用粵語、普通話或英文語音自動主持，包括夜晚流程、計時和電子派牌，所有人都可以一起玩。${aka.length ? `${name}又名${aka.slice(0, 3).join('、')}。` : ''}`,
         `Want to play ${name} without anyone sitting out as moderator? Board Game MC narrates it for you in Cantonese, Mandarin or English, with timers and optional digital role dealing.${aka.length ? ` Also known as ${aka.slice(0, 3).join(', ')}.` : ''}`))}</p></section>
@@ -225,6 +244,7 @@ function guidePage(game, lang) {
     <h2>📖 ${esc(S('howToPlay'))}</h2>
     <section class="card-sec"><ol>${rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol></section>
     ${roleTable}
+    ${strategy}
     ${setupTable}
     <h2>💡 ${esc(S('tips'))}</h2>
     <section class="card-sec"><ul>${tips.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>
@@ -237,10 +257,90 @@ function guidePage(game, lang) {
     <h2>🎲 ${esc(T(lang, '更多熱門桌遊', 'More games'))}</h2>
     <div class="related">${related.map((g) => `<a class="mini" href="${L.prefix}games/${g.id}/" style="--c1:${g.colors[0]};--c2:${g.colors[1]}"><span class="mini-emoji">${g.emoji}</span><span>${esc(inLang(g.name, lang))}</span></a>`).join('')}</div>
 
+    <h2>📚 ${esc(S('moreGuides'))}</h2>
+    ${guideCards(lang, L.prefix)}
+
     <footer class="foot">
       <nav class="foot-links">${GAMES.map((g) => `<a href="${L.prefix}games/${g.id}/">${esc(inLang(g.name, lang))}</a>`).join('')}</nav>
       <p>${esc(S('footer'))} · <a href="https://github.com/bill2712/boardgame-mc" rel="noopener">GitHub</a></p>
       <p class="small">${esc(T(lang, '非官方粉絲工具，與各遊戲出版商無關。請支持正版桌遊！', 'Unofficial fan-made helper, not affiliated with any publisher. Please support the original games!'))}</p>
+    </footer>
+  </main>
+</body>
+</html>
+`;
+}
+
+// ---------- guide articles ----------
+function articlePage(guide, lang) {
+  const L = LANGS.find((l) => l.id === lang);
+  const S = strings(lang);
+  const title = `${inLang(guide.title, lang)} · ${S('appTitle')}`;
+  const desc = clip(inLang(guide.desc, lang), lang === 'en' ? 160 : 90);
+  const path = `${L.prefix}guides/${guide.id}/`;
+  const base = lang === 'zh' ? '../../' : '../../../';
+  const homeHref = L.prefix || './';
+  const alternates = [...LANGS.map((l) => ({ hreflang: l.html, path: `${l.prefix}guides/${guide.id}/` })), { hreflang: 'x-default', path: `guides/${guide.id}/` }];
+  const langLinks = LANGS.map((l) => ({ href: `${l.prefix}guides/${guide.id}/`, html: l.html, short: shortOf(l.id), on: l.id === lang }));
+  const jsonld = [
+    {
+      '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: S('appTitle'), item: SITE + L.prefix },
+        { '@type': 'ListItem', position: 2, name: inLang(guide.short, lang), item: SITE + path },
+      ],
+    },
+    { '@context': 'https://schema.org', '@type': 'Article', headline: inLang(guide.title, lang), description: desc, inLanguage: L.html, url: SITE + path, image: `${SITE}og/home.jpg`, author: { '@type': 'Organization', name: T(lang, '桌遊主持人', 'Board Game MC') } },
+  ];
+  const gameLink = (g) => `<a class="mini" href="${L.prefix}games/${g.id}/" style="--c1:${g.colors[0]};--c2:${g.colors[1]}"><span class="mini-emoji">${g.emoji}</span><span>${esc(inLang(g.name, lang))}</span></a>`;
+  const section = (sec) => `
+    <h2>${esc(inLang(sec.h, lang))}</h2>
+    <section class="card-sec">${(sec.p || []).map((p) => `<p>${esc(inLang(p, lang))}</p>`).join('')}${sec.list ? `<ul>${sec.list.map((x) => `<li>${esc(inLang(x, lang))}</li>`).join('')}</ul>` : ''}</section>`;
+  // The player-count article is built from the game data.
+  const buckets = (guide.buckets || []).map((b) => {
+    const fits = playable.filter((g) => g.players.min <= b.max && g.players.max >= b.min);
+    const bestFit = (g) => {
+      const m = /^(\d+)(?:–(\d+)|\+)?$/.exec(g.best || '');
+      if (!m) return false;
+      const lo = +m[1]; const hi = m[2] ? +m[2] : /\+/.test(g.best) ? 99 : lo;
+      return lo <= b.max && hi >= b.min;
+    };
+    const ranked = [...fits.filter(bestFit), ...fits.filter((g) => !bestFit(g))];
+    return `
+    <h2>👥 ${esc(T(lang, `${b.min}–${b.max} 人`, `${b.min}–${b.max} players`))}</h2>
+    <section class="card-sec"><p>${esc(inLang(b.note, lang))}</p>
+      <div class="table-scroll"><table class="role-table">
+        <thead><tr><th>${esc(T(lang, '遊戲', 'Game'))}</th><th>${esc(T(lang, '類型', 'Type'))}</th><th>${esc(T(lang, '人數', 'Players'))}</th><th>${esc(S('best'))}</th><th>${esc(T(lang, '時間', 'Time'))}</th></tr></thead>
+        <tbody>${ranked.map((g) => `<tr><td><a href="${L.prefix}games/${g.id}/"><b>${g.emoji} ${esc(inLang(g.name, lang))}</b></a>${bestFit(g) ? ' ⭐' : ''}</td><td>${esc(inLang(CATEGORIES[g.category], lang))}</td><td>${g.players.min}–${g.players.max}</td><td>${esc(g.best)}</td><td>${esc(g.time)} ${esc(S('minutes'))}</td></tr>`).join('')}</tbody>
+      </table></div>
+    </section>`;
+  }).join('');
+  const games = guide.games.map((id) => GAMES.find((g) => g.id === id)).filter(Boolean);
+
+  return `<!doctype html>
+<html lang="${L.html}">
+<head>
+  ${head({ lang, title, desc, path, image: 'og/home.jpg', alternates, jsonld, base })}
+</head>
+<body>
+  ${topbar(lang, langLinks)}
+  <main class="wrap guide article">
+    <nav class="crumbs" aria-label="breadcrumb"><a href="${homeHref}">${esc(S('appTitle'))}</a> › ${esc(inLang(guide.short, lang))}</nav>
+    <header class="article-hero">
+      <div class="setup-emoji">${guide.emoji}</div>
+      <h1>${esc(inLang(guide.title, lang))}</h1>
+      <p class="muted">${esc(inLang(guide.desc, lang))}</p>
+    </header>
+    ${guide.intro ? `<section class="card-sec"><p>${esc(inLang(guide.intro, lang))}</p></section>` : ''}
+    ${buckets}
+    ${guide.sections.map(section).join('')}
+    ${games.length ? `<h2>🎲 ${esc(T(lang, '文中提到的遊戲', 'Games in this guide'))}</h2>
+    <div class="related">${games.map(gameLink).join('')}</div>` : ''}
+    <div style="margin:26px 0"><a class="btn primary big" href="${homeHref}">▶ ${esc(T(lang, '打開桌遊主持人', 'Open Board Game MC'))}</a></div>
+    <h2>📚 ${esc(S('moreGuides'))}</h2>
+    ${guideCards(lang, L.prefix, guide.id)}
+    <footer class="foot">
+      <nav class="foot-links">${playable.map((g) => `<a href="${L.prefix}games/${g.id}/">${esc(inLang(g.name, lang))}</a>`).join('')}</nav>
+      <p>${esc(S('footer'))} · <a href="https://github.com/bill2712/boardgame-mc" rel="noopener">GitHub</a></p>
     </footer>
   </main>
 </body>
@@ -262,6 +362,10 @@ ${p.alts.map((a) => `    <xhtml:link rel="alternate" hreflang="${a.hreflang}" hr
     const alts = [...LANGS.map((l) => ({ hreflang: l.html, path: `${l.prefix}games/${g.id}/` })), { hreflang: 'x-default', path: `games/${g.id}/` }];
     for (const l of LANGS) entries.push({ self: `${l.prefix}games/${g.id}/`, alts });
   }
+  for (const g of GUIDES) {
+    const alts = [...LANGS.map((l) => ({ hreflang: l.html, path: `${l.prefix}guides/${g.id}/` })), { hreflang: 'x-default', path: `guides/${g.id}/` }];
+    for (const l of LANGS) entries.push({ self: `${l.prefix}guides/${g.id}/`, alts });
+  }
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${group(entries)}
@@ -273,11 +377,12 @@ export function build() {
   for (const l of LANGS) {
     write(`${l.prefix}index.html`, homePage(l.id));
     for (const g of GAMES) write(`${l.prefix}games/${g.id}/index.html`, guidePage(g, l.id));
+    for (const g of GUIDES) write(`${l.prefix}guides/${g.id}/index.html`, articlePage(g, l.id));
   }
   write('sitemap.xml', sitemap());
   write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${SITE}sitemap.xml\n`);
   write('404.html', `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>404 · 桌遊主持人</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/boardgame-mc/css/style.css"></head><body><main class="wrap" style="text-align:center;padding-top:80px"><div style="font-size:72px">🎲</div><h1>404</h1><p class="muted">找不到這個頁面 · Page not found</p><p><a class="btn primary" href="/boardgame-mc/">桌遊主持人 Board Game MC</a></p></main></body></html>\n`);
-  return GAMES.length * LANGS.length + LANGS.length;
+  return (GAMES.length + GUIDES.length + 1) * LANGS.length;
 }
 
 if (process.argv[1] && process.argv[1].endsWith('build.mjs')) {
